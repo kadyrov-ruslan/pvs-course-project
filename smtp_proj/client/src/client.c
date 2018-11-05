@@ -1,4 +1,5 @@
 #include "client_types.h"
+#include "scheduler.h"
 #include <assert.h>
 #include <grp.h>
 #include <pwd.h>
@@ -37,20 +38,20 @@ static int client_parse_config(void)
 
     if (system == NULL)
     {
-        slog_e("%s", "not `system' parametr");
+        log_e("%s", "not `system' parametr");
         printf("null system\n");
         return -1;
     }
 
     if (config_setting_lookup_int(system, "port", &conf.port) != CONFIG_TRUE)
     {
-        slog_e("%s", "No `port' parametr in config");
+        log_e("%s", "No `port' parametr in config");
         return -1;
     }
 
     if (conf.port <= 0)
     {
-        slog_e("incorrect `port' (%d)", conf.port);
+        log_e("incorrect `port' (%d)", conf.port);
         return -1;
     }
 
@@ -61,18 +62,18 @@ static int client_parse_config(void)
     {
         if (gethostname(hostname_sys, NAME_MAX) != 0)
         {
-            slog_e("gethostname() failed: %s", strerror(errno));
+            log_e("gethostname() failed: %s", strerror(errno));
             abort();
         }
 
         conf.hostname = hostname_sys;
     }
-    slog_i("`hostname' %s'", conf.hostname);
+    log_i("`hostname' %s'", conf.hostname);
 
     if (config_setting_lookup_int(system, "log_level", &log_lvl) != CONFIG_TRUE ||
         log_lvl < 0 || log_lvl >= LOG_LVL_LAST)
     {
-        slog_e("%s", "incorrect `log_level' parametr in config");
+        log_e("%s", "incorrect `log_level' parametr in config");
         return -1;
     }
     conf.log_lvl = log_lvl;
@@ -80,82 +81,82 @@ static int client_parse_config(void)
 
     if (config_lookup_string(&client_conf, "log_file", &conf.log_file) != CONFIG_TRUE)
     {
-        slog_e("%s", "incorrect `log_file'");
+        log_e("%s", "incorrect `log_file'");
         return -1;
     }
 
     if (stat(conf.log_file, &log_file_st) != 0)
     {
-        slog_e("incorrect log file: %s", strerror(errno));
+        log_e("incorrect log file: %s", strerror(errno));
         return -1;
     }
 
     if (config_lookup_string(&client_conf, "mail_dir", &conf.mail_dir) != CONFIG_TRUE)
     {
-        slog_e("%s", "incorrect `mail_dir'");
+        log_e("%s", "incorrect `mail_dir'");
         return -1;
     }
 
     if (stat(conf.mail_dir, &mail_dir_st) != 0)
     {
         printf("incor maildir\n");
-        slog_e("incorrect mail dir: %s", strerror(errno));
+        log_e("incorrect mail dir: %s", strerror(errno));
         return -1;
     }
 
     /*if (config_lookup_string(&client_conf, "queue_dir", &conf.queue_dir) != CONFIG_TRUE)
     {
-        slog_e("%s", "incorrect `queue_dir'");
+        log_e("%s", "incorrect `queue_dir'");
         return -1;
     }*/
 
     /*if (stat(conf.queue_dir, &queue_dir_st) != 0)
     {
-        slog_e("incorrect queue dir: %s", strerror(errno));
+        log_e("incorrect queue dir: %s", strerror(errno));
         return -1;
     }*/
 
     if (config_setting_lookup_string(system, "user", &user_group) != CONFIG_TRUE)
     {
-        slog_e("%s", "No `user' parametr in config");
+        log_e("%s", "No `user' parametr in config");
         printf("in user\n");
         return -1;
     }
 
     if ((pwd = getpwnam(user_group)) == NULL)
     {
-        slog_e("user %s doesn't exist or error occured", user_group);
+        log_e("user %s doesn't exist or error occured", user_group);
         return -1;
     }
 
     if (config_setting_lookup_string(system, "group", &user_group) != CONFIG_TRUE)
     {
-        slog_e("%s", "No `group' parametr in config");
+        log_e("%s", "No `group' parametr in config");
         return -1;
     }
 
     if ((gr = getgrnam(user_group)) == NULL)
     {
-        slog_e("group %s doesn't exist or error occured", user_group);
+        log_e("group %s doesn't exist or error occured", user_group);
         return -1;
     }
 
     if (setgid(gr->gr_gid) != 0 ||
         setuid(pwd->pw_uid) != 0)
     {
-        slog_e("unable to change to user and group from config: %s", strerror(errno));
+        log_e("unable to change to user and group from config: %s", strerror(errno));
         return -1;
     }
 
     if (mail_dir_st.st_uid != pwd->pw_uid || mail_dir_st.st_gid != gr->gr_gid)
     {
-        slog_e("access denied to %s", conf.mail_dir);
+        log_e("access denied to %s", conf.mail_dir);
         return -1;
     }
 
     /*if (queue_dir_st.st_uid != pwd->pw_uid || queue_dir_st.st_gid != gr->gr_gid)
     {
-        slog_e("access denied to %s", conf.queue_dir);
+        log_e("access denied to %s", conf.queue_dir);
         return -1;
     }*/
 
@@ -166,7 +167,7 @@ int main(int argc, char *argv[])
 {
     if (argc == 1)
     {
-        slog_e("%s", CLIENT_USAGE);
+        log_e("%s", CLIENT_USAGE);
         return -1;
     }
 
@@ -180,20 +181,20 @@ int main(int argc, char *argv[])
     if (config_read(&client_conf, conf_f) != CONFIG_TRUE)
     {
         printf("Error while config parsing\n");
-        slog_e("Error while config parsing: %s\n", config_error_text(&client_conf));
+        log_e("Error while config parsing: %s\n", config_error_text(&client_conf));
         return -1;
     }
 
     if (client_parse_config() != 0)
     {
         printf("Unable to start client: incorrect config file\n");
-        slog_e("%s", "Unable to start client: incorrect config file");
+        log_e("%s", "Unable to start client: incorrect config file");
         return -1;
     }
 
     printf("config is correct. Ready to start client\n");
-    slog_i("config `%s' is correct. Ready to start client", argv[1]);
+    log_i("config `%s' is correct. Ready to start client", argv[1]);
 
-    //run_client();
+    run_client();
     return 0;
 }
