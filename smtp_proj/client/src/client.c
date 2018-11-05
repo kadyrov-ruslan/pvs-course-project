@@ -38,7 +38,7 @@ static int client_parse_config(void)
     if (system == NULL)
     {
         slog_e("%s", "not `system' parametr");
-	    printf("null system\n");
+        printf("null system\n");
         return -1;
     }
 
@@ -98,7 +98,7 @@ static int client_parse_config(void)
 
     if (stat(conf.mail_dir, &mail_dir_st) != 0)
     {
-	    printf("incor maildir\n");
+        printf("incor maildir\n");
         slog_e("incorrect mail dir: %s", strerror(errno));
         return -1;
     }
@@ -118,7 +118,7 @@ static int client_parse_config(void)
     if (config_setting_lookup_string(system, "user", &user_group) != CONFIG_TRUE)
     {
         slog_e("%s", "No `user' parametr in config");
-	    printf("in user\n");
+        printf("in user\n");
         return -1;
     }
 
@@ -186,13 +186,13 @@ int main(int argc, char *argv[])
 
     if (client_parse_config() != 0)
     {
-	printf("Unable to start client: incorrect config file\n");
+        printf("Unable to start client: incorrect config file\n");
         slog_e("%s", "Unable to start client: incorrect config file");
         return -1;
     }
 
     printf("config is correct. Ready to start client\n");
-    //slog_i("config `%s' is correct. Ready to start client", argv[1]);
+    slog_i("config `%s' is correct. Ready to start client", argv[1]);
 
     //run_client();
     return 0;

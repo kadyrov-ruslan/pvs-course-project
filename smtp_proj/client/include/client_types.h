@@ -11,7 +11,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-struct client_conf {
+struct client_conf
+{
 	int port;
 	int proc_cnt;
 
@@ -25,4 +26,3 @@ struct client_conf {
 extern struct client_conf conf;
 
 #endif // _CLIENT_TYPES_H_
-
