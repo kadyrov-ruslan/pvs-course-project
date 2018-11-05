@@ -4,9 +4,9 @@
 #include <dirent.h>
 #include <sys/types.h>
 
-#define MAX_FD_CNT	1024
-#define MAX_Q_LEN	10
-#define MAX_BUF_LEN	1024
+#define MAX_FD_CNT 1024
+#define MAX_Q_LEN 10
+#define MAX_BUF_LEN 1024
 
 //static char ip_def[32] = "127.0.0.1";
 
@@ -56,19 +56,19 @@ void check_output_mails()
     while ((de = readdir(dir)) != NULL)
     {
         char *cur_domain_dir = de->d_name;
-	if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0)		
-		{
-	char *domain_dir = malloc(5 + strlen(cur_domain_dir));
-    	strcpy(domain_dir, "/");
-    	strcat(domain_dir, cur_domain_dir);
+        if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0)
+        {
+            char *domain_dir = malloc(5 + strlen(cur_domain_dir));
+            strcpy(domain_dir, "/");
+            strcat(domain_dir, cur_domain_dir);
 
-	char *full_domain_dir;
-	char *s = full_out_maildir;
-    	full_domain_dir = malloc(strlen(s) + strlen(domain_dir));
-    	strcpy(full_domain_dir, s);
-    	strcat(full_domain_dir, domain_dir);
-    	printf("full domain path %s\n", full_domain_dir);
-/*
+            char *full_domain_dir;
+            char *s = full_out_maildir;
+            full_domain_dir = malloc(strlen(s) + strlen(domain_dir));
+            strcpy(full_domain_dir, s);
+            strcat(full_domain_dir, domain_dir);
+            printf("full domain path %s\n", full_domain_dir);
+            /*
         if (isDirectory(cur_domain_dir))
         {
             printf("IS directory");
@@ -81,16 +81,16 @@ void check_output_mails()
                 printf("directory is EMPTY");
         }
 */
-	    //printf("IS directory");
-            if(countEntriesInDir(full_domain_dir) > 0)
+            //printf("IS directory");
+            if (countEntriesInDir(full_domain_dir) > 0)
             {
- 		
+
                 printf("directory is NOT EMPTY\n");
                 //if(каталог не пустой) создаем элемент словаря
             }
             else
                 printf("directory is EMPTY\n");
-}
+        }
     }
 
     closedir(dir);
@@ -105,23 +105,24 @@ void check_output_mails()
     return S_ISDIR(statbuf.st_mode);
 }*/
 
-//todo вынести в другой файл по работе с каталогами
+//todo вынести в другой файл по работе с каталогами//
 int countEntriesInDir(const char *dirname)
 {
-printf("opening%s\n", dirname);
+    printf("opening%s\n", dirname);
     int n = 0;
     struct dirent *d;
     DIR *dir = opendir(dirname);
     if (dir == NULL)
-{printf("NULL dir\n");
+    {
+        printf("NULL dir\n");
         return 0;
-}
+    }
 
     while ((d = readdir(dir)) != NULL)
-{
-if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0)
-        n++;
-}
+    {
+        if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0)
+            n++;
+    }
     closedir(dir);
     return n;
 }

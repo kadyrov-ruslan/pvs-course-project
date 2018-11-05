@@ -2,11 +2,7 @@
 #define _SCHEDULER_H_
 
 #include "client_types.h"
-
 #include <stdbool.h>
-#include <netdb.h>
-#include <sys/socket.h>
-
 
 int run_client();
 void check_output_mails();
