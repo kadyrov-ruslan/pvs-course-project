@@ -43,7 +43,6 @@ void check_output_mails()
     full_out_maildir = malloc(strlen(conf.mail_dir) + 1 + 4);
     strcpy(full_out_maildir, conf.mail_dir);
     strcat(full_out_maildir, output_mails_dir);
-    printf("full path %s\n", full_out_maildir);
 
     // Pointer for directory entry
     struct dirent *de;
@@ -59,15 +58,15 @@ void check_output_mails()
         char *cur_domain_dir = de->d_name;
 	if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0)		
 		{
+	char *domain_dir = malloc(5 + strlen(cur_domain_dir));
+    	strcpy(domain_dir, "/");
+    	strcat(domain_dir, cur_domain_dir);
 
-        printf("%s\n", cur_domain_dir);
 	char *full_domain_dir;
-    	printf("full path %s\n", full_out_maildir);
 	char *s = full_out_maildir;
-    	full_domain_dir = malloc(strlen(s) + 1 + strlen(cur_domain_dir));
+    	full_domain_dir = malloc(strlen(s) + strlen(domain_dir));
     	strcpy(full_domain_dir, s);
-    	strcpy(full_domain_dir, "/");
-    	strcat(full_domain_dir, cur_domain_dir);
+    	strcat(full_domain_dir, domain_dir);
     	printf("full domain path %s\n", full_domain_dir);
 /*
         if (isDirectory(cur_domain_dir))
@@ -83,7 +82,7 @@ void check_output_mails()
         }
 */
 	    //printf("IS directory");
-            if(countEntriesInDir(cur_domain_dir) > 0)
+            if(countEntriesInDir(full_domain_dir) > 0)
             {
  		
                 printf("directory is NOT EMPTY\n");
@@ -109,13 +108,20 @@ void check_output_mails()
 //todo вынести в другой файл по работе с каталогами
 int countEntriesInDir(const char *dirname)
 {
+printf("opening%s\n", dirname);
     int n = 0;
     struct dirent *d;
     DIR *dir = opendir(dirname);
     if (dir == NULL)
+{printf("NULL dir\n");
         return 0;
+}
+
     while ((d = readdir(dir)) != NULL)
+{
+if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0)
         n++;
+}
     closedir(dir);
     return n;
 }
