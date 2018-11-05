@@ -12,13 +12,13 @@
 #include <inttypes.h>
 
 struct client_conf {
-	long int port;
-	long int proc_cnt;
+	int port;
+	int proc_cnt;
 
 	log_level log_lvl;
 	const char *log_file;
 	const char *mail_dir;
-	const char *queue_dir;
+	//const char *queue_dir;
 	const char *hostname;
 };
 

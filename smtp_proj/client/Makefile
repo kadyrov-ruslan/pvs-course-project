@@ -5,7 +5,7 @@ LDFLAGS=-pthread  -lrt
 INC = include
 SRC_DIR = src
 OBJ_DIR = obj
-LIB = -lconfig -lpthread -lpcre
+LIB = -lconfig -lpthread
 TARGET = smtp_client
 
 SRC = client.c log.c
