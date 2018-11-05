@@ -8,7 +8,7 @@ OBJ_DIR = obj
 LIB = -lconfig -lpthread
 TARGET = smtp_client
 
-SRC = client.c log.c
+SRC = client.c log.c scheduler.c
 OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o, $(SRC:.c=.o))
 
 all: client
