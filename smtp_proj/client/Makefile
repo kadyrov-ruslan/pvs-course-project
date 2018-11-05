@@ -6,9 +6,9 @@ INC = include
 SRC_DIR = src
 OBJ_DIR = obj
 LIB = -lconfig -lpthread -lpcre
-#TARGET = smtp_client
+TARGET = smtp_client
 
-#SRC = 
+SRC = client.c log.c
 OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o, $(SRC:.c=.o))
 
 all: client
