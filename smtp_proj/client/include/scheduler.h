@@ -9,6 +9,7 @@
 
 
 int run_client();
-int check_output_mails();
+void check_output_mails();
+int countEntriesInDir(const char *dirname);
 
 #endif // _SCHEDULER_H_
