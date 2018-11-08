@@ -5,6 +5,7 @@
 struct MapItem {
     char *key;
     int *values;
+    int values_count;
 };
 
 
