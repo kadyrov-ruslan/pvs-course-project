@@ -1,8 +1,8 @@
 #ifndef _SCHEDULER_H_
 #define _SCHEDULER_H_
 
-#include "client_types.h"
-#include "map.h"
+//#include "client_types.h"
+#include "../../common/include/map.h"
 #include <stdbool.h>
 
 int run_client();

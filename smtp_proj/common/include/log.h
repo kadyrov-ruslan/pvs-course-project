@@ -53,9 +53,9 @@ extern log_level cur_lvl;
 	}									\
 }
 
-#define slog_i(format, ...) LOG(INFO, format, __VA_ARGS__);
-#define slog_d(format, ...) LOG(DEBUG, format, __VA_ARGS__);
-#define slog_w(format, ...) LOG(WARN, format, __VA_ARGS__);
-#define slog_e(format, ...) LOG(ERROR, format, __VA_ARGS__);
+#define log_i(format, ...) LOG(INFO, format, __VA_ARGS__);
+#define log_d(format, ...) LOG(DEBUG, format, __VA_ARGS__);
+#define log_w(format, ...) LOG(WARN, format, __VA_ARGS__);
+#define log_e(format, ...) LOG(ERROR, format, __VA_ARGS__);
 
 #endif

@@ -1,6 +1,6 @@
-#include "scheduler.h"
-#include "client_types.h"
-#include "map.h"
+#include "../include/client_types.h"
+#include "../include/scheduler.h"
+#include "../../common/include/map.h"
 #include <stdio.h>
 #include <dirent.h>
 #include <sys/types.h>

@@ -1,5 +1,5 @@
-#include "client_types.h"
-#include "scheduler.h"
+#include "../include/client_types.h"
+#include "../include/scheduler.h"
 #include <assert.h>
 #include <grp.h>
 #include <pwd.h>

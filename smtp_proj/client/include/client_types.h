@@ -1,7 +1,7 @@
 #ifndef _CLIENT_TYPES_H_
 #define _CLIENT_TYPES_H_
 
-#include "log.h"
+#include "../../common/include/log.h"
 
 #include <errno.h>
 #include <libconfig.h>
