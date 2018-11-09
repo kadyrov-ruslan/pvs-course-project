@@ -6,23 +6,27 @@
 
 int run_client()
 {
-    //Check mail domains' folder for new messages
-    struct MapItem mail_domains_msgs[3];
-    int mail_domains_count = get_output_mails(mail_domains_msgs);
-
-    printf("domains Mails count %d\n", mail_domains_count);
-
-    for (int i = 0; i < mail_domains_count; i++)
+    while (1)
     {
-        printf(" ------------------------------- \n");
-        printf("Mail domain %s\n", mail_domains_msgs[i].domain);
-        printf("Mails count %d\n", mail_domains_msgs[i].values_count);
+        printf(" ########### NEW PERIOD ############## \n");
+        //Check mail domains' folder for new messages
+        struct MapItem mail_domains_msgs[3];
+        int mail_domains_count = get_output_mails(mail_domains_msgs);
 
-        get_domain_server_info(mail_domains_msgs[i].domain);
-        //bind socket for cur server
-        //save fd of sockets and run process
+        printf("domains Mails count %d\n", mail_domains_count);
+
+        for (int i = 0; i < mail_domains_count; i++)
+        {
+            printf(" ------------------------------- \n");
+            printf("Mail domain %s\n", mail_domains_msgs[i].domain);
+            printf("Mails count %d\n", mail_domains_msgs[i].values_count);
+
+            get_domain_server_info(mail_domains_msgs[i].domain);
+            //bind socket for cur server
+            //save fd of sockets and run process
+        }
+        sleep(5);
     }
-
     return 1;
 }
 
