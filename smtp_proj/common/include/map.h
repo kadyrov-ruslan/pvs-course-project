@@ -3,7 +3,8 @@
 
 
 struct MapItem {
-    char *key;
+    char *full_domain_dir;
+    char *domain;
     int *values;
     int values_count;
 };

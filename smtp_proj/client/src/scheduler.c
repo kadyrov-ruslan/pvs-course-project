@@ -1,50 +1,33 @@
-#include "../include/client_types.h"
 #include "../include/scheduler.h"
-#include "../../common/include/map.h"
-#include <stdio.h>
-#include <dirent.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <netinet/in.h> //Internet address family
-#include <netdb.h>      //definitions for network database operations
-#include <arpa/inet.h>  //definitions for internet operations
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <netdb.h>
 
 #define MAX_FD_CNT 1024
 #define MAX_Q_LEN 10
 #define MAX_BUF_LEN 1024
 
-//static char ip_def[32] = "127.0.0.1";
-
 int run_client()
 {
     //Check mail domains' folder for new messages
-    struct MapItem mail_domains_msgs[10];
+    struct MapItem mail_domains_msgs[3];
     int mail_domains_count = get_output_mails(mail_domains_msgs);
+
+    printf("domains Mails count %d\n", mail_domains_count);
+
     for (int i = 0; i < mail_domains_count; i++)
     {
-        printf("Mail domain %s\n", mail_domains_msgs[i].key);
+        printf(" ------------------------------- \n");
+        printf("Mail domain %s\n", mail_domains_msgs[i].domain);
         printf("Mails count %d\n", mail_domains_msgs[i].values_count);
+
+        get_domain_server_info(mail_domains_msgs[i].domain);
+        //bind socket for cur server
+        //save fd of sockets and run process
     }
 
-    get_server_info("smtp.gmail.com");
     return 1;
 }
 
 int get_output_mails(struct MapItem *items)
 {
-    //static struct MapItem items[10];
     int items_count = 0;
 
     const char *output_mails_dir = "/out";
@@ -52,7 +35,7 @@ int get_output_mails(struct MapItem *items)
     strcpy(full_out_maildir, conf.mail_dir);
     strcat(full_out_maildir, output_mails_dir);
 
-    // Pointer for directory entry
+    // Pointer for dir entry
     struct dirent *de;
     DIR *dir = opendir(full_out_maildir);
     if (dir == NULL)
@@ -60,16 +43,22 @@ int get_output_mails(struct MapItem *items)
 
     while ((de = readdir(dir)) != NULL)
     {
-        char *cur_domain_dir = de->d_name;
+        char *d_name = de->d_name;
+        char *cur_domain_dir = malloc(strlen(d_name));
+        strcpy(cur_domain_dir, d_name);
+
         if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0)
-        {
-            char *full_domain_dir = malloc(strlen(full_out_maildir) + 5 + strlen(cur_domain_dir));
+        {              
+            char *domain_dir = malloc(1 + strlen(cur_domain_dir));
+            strcpy(domain_dir, "/");
+            strcat(domain_dir, cur_domain_dir);
+
+            char *full_domain_dir = malloc(strlen(full_out_maildir) + 5 + strlen(domain_dir));
             strcpy(full_domain_dir, full_out_maildir);
             strcat(full_domain_dir, "/");
             strcat(full_domain_dir, cur_domain_dir);
-            //printf("full domain path %s\n", full_domain_dir);
 
-            int mails_count = countEntriesInDir(full_domain_dir);
+            int mails_count = count_dir_entries(full_domain_dir);
             if (mails_count > 0)
             {
                 printf("directory is NOT EMPTY\n");
@@ -90,9 +79,7 @@ int get_output_mails(struct MapItem *items)
 
                         int fd;
                         if ((fd = open(file_full_name, O_RDONLY)) == -1)
-                        {
                             printf("error %s\n", strerror(errno));
-                        }
                         else
                         {
                             //printf("fd %d\n", fd);
@@ -103,7 +90,8 @@ int get_output_mails(struct MapItem *items)
                 }
                 closedir(dir);
 
-                items[items_count].key = full_domain_dir;
+                items[items_count].full_domain_dir = full_domain_dir;
+                items[items_count].domain = cur_domain_dir;
                 items[items_count].values = mails_fd;
                 items[items_count].values_count = cur_domain_mails_count;
                 items_count = items_count + 1;
@@ -114,22 +102,26 @@ int get_output_mails(struct MapItem *items)
     }
 
     closedir(dir);
+
+    /*for (int i = 0; i < items_count; i++)
+    {
+        printf(" ----$#############################---------- \n");
+        printf("Mail domain %s\n", items[i].domain);
+        printf("Full Mail domain dir %s\n", items[i].full_domain_dir);
+        printf("Mails count %d\n", items[i].values_count);
+
+        get_domain_server_info(items[i].domain);
+        //bind socket for cur server
+        //save fd of sockets and run process
+    }*/
+
     return items_count;
 }
 
 //todo вынести в другой файл по работе с каталогами
-int isDirectory(const char *path)
+int count_dir_entries(const char *dirname)
 {
-    struct stat statbuf;
-    if (stat(path, &statbuf) != 0)
-        return 0;
-    return S_ISDIR(statbuf.st_mode);
-}
-
-//todo вынести в другой файл по работе с каталогами
-int countEntriesInDir(const char *dirname)
-{
-    printf("opening%s\n", dirname);
+    printf("opening %s\n", dirname);
     int n = 0;
     struct dirent *d;
     DIR *dir = opendir(dirname);
@@ -148,15 +140,28 @@ int countEntriesInDir(const char *dirname)
     return n;
 }
 
-void get_server_info(char *SMTP_Server_Host_Name)
+void get_domain_server_info(char *domain_name)
 {
+    //printf("domain name  %s\n", domain_name);
+
+    int host_num = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        if (strcmp(conf.mail_domains[i].domain, domain_name) == 0)
+        {
+            host_num = i;
+            printf("SMTP_Server_Host_Name %s\n", conf.mail_domains[i].server_host_name);
+            break;
+        }
+    }
+
     struct sockaddr_in gmail_server; //this struct contains ip address and a port of the server.
     struct hostent *gmail_info;      //this struct contains all the info of a host name in the Internet.
 
     //getting all the information about gmail
     char *gmail_ip;
     //gethostbyname() returns strcut hostent contains all the info about the host name argument
-    gmail_info = gethostbyname(SMTP_Server_Host_Name);
+    gmail_info = gethostbyname(conf.mail_domains[host_num].server_host_name);
     if (gmail_info == NULL)
     {
         printf("%s\n", strerror(errno));
