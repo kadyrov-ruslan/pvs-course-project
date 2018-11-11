@@ -15,13 +15,19 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <resolv.h>
 
 #include "../../common/include/map.h"
 #include "../include/client_types.h"
 
 int run_client();
+int get_out_mail_domains(char **domains);
+char *str_replace(char *str, char *orig, char *rep);
+
+
 int get_output_mails(struct MapItem *items);
 int count_dir_entries(const char *dirname);
+//void bullshit(char *domain_name);
 
 void get_domain_server_info(char *domain_name);
 

@@ -5,6 +5,8 @@
 struct MapItem {
     char *full_domain_dir;
     char *domain;
+    //вместо массива fd 
+    //открываем письма по очереди а не сразу
     int *values;
     int values_count;
 };
