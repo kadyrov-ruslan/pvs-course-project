@@ -1,12 +1,4 @@
 #include "../include/scheduler.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <resolv.h>
-#include <netdb.h>
-#include <string.h>
-#include <assert.h>
-#include <stdio.h>
 
 #define N 4096
 #define MAX_FD_CNT 1024
@@ -24,8 +16,11 @@ int run_client()
         printf(" ------------------------------- \n");
         printf("Mail domain %s\n", mail_domains[i]);
         char *res = get_domain_mx_server(mail_domains[i]);
-                    printf("\t%s\n", res);
-        //get_domain_server_info(mail_domains_msgs[i].domain);
+        struct sockaddr_in cur_domain_socket_info = get_domain_server_info(res);
+
+        printf("server IP:%s\n",   inet_ntoa(cur_domain_socket_info.sin_addr));
+        printf("server port:%d\n", cur_domain_socket_info.sin_port);
+
         //bind socket for cur server
         //save fd of sockets and run process
     }
@@ -43,9 +38,6 @@ int run_client()
     //     {
     //         printf(" ------------------------------- \n");
     //         printf("Mail domain %s\n", mail_domains_msgs[i].domain);
-    //         printf("Mails count %d\n", mail_domains_msgs[i].values_count);
-    //         //bullshit(mail_domains_msgs[i].domain);
-    //         //get_domain_server_info(mail_domains_msgs[i].domain);
     //         //bind socket for cur server
     //         //save fd of sockets and run process
     //     }
@@ -225,58 +217,34 @@ int get_output_mails(struct MapItem *items)
     return items_count;
 }
 
-//todo вынести в другой файл по работе с каталогами
-int count_dir_entries(const char *dirname)
+struct sockaddr_in get_domain_server_info(char *domain_name)
 {
-    printf("opening %s\n", dirname);
-    int n = 0;
-    struct dirent *d;
-    DIR *dir = opendir(dirname);
-    if (dir == NULL)
-    {
-        printf("NULL dir\n");
-        return 0;
-    }
-
-    while ((d = readdir(dir)) != NULL)
-    {
-        if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0)
-            n++;
-    }
-    closedir(dir);
-    return n;
-}
-
-void get_domain_server_info(char *domain_name)
-{
-    char *server_host_name = malloc(strlen(domain_name) + 4);
-    strcpy(server_host_name, "mxs.");
-    strcat(server_host_name, domain_name);
-
-    struct sockaddr_in gmail_server; //this struct contains ip address and a port of the server.
-    struct hostent *gmail_info;      //this struct contains all the info of a host name in the Internet.
+    struct sockaddr_in mail_server; //this struct contains ip address and a port of the server.
+    struct hostent *mail_info;      //this struct contains all the info of a host name in the Internet.
 
     //getting all the information about gmail
-    char *gmail_ip;
+    char *mail_ip;
     //gethostbyname() returns strcut hostent contains all the info about the host name argument
-    gmail_info = gethostbyname(server_host_name);
-    if (gmail_info == NULL)
+    mail_info = gethostbyname(domain_name);
+    if (mail_info == NULL)
     {
         printf("%s\n", strerror(errno));
         exit(0);
     }
 
-    gmail_ip = (char *)malloc(INET_ADDRSTRLEN + 1);
-    inet_ntop(AF_INET, gmail_info->h_addr_list[0], gmail_ip, INET_ADDRSTRLEN);
-    printf("server IP:%s\n", gmail_ip);
-    free(gmail_ip);
-    printf("server Name:%s\n", (char *)gmail_info->h_name);
+    mail_ip = (char *)malloc(INET_ADDRSTRLEN + 1);
+    inet_ntop(AF_INET, mail_info->h_addr_list[0], mail_ip, INET_ADDRSTRLEN);
+    //printf("server IP:%s\n", mail_ip);
+    free(mail_ip);
+    //printf("server Name:%s\n", (char *)mail_info->h_name);
 
     //filling struct sockaddr_in gmail_server in the ip and the port of the server (from struct hostent* gmail_info)
-    bzero(&gmail_server, sizeof(gmail_server));
-    gmail_server.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
-    gmail_server.sin_port = htons(25); //port 25=SMTP.
-    bcopy((char *)gmail_info->h_addr_list[0], (char *)&gmail_server.sin_addr.s_addr, gmail_info->h_length);
+    bzero(&mail_server, sizeof(mail_server));
+    mail_server.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
+    mail_server.sin_port = htons(25); //port 25=SMTP.
+    bcopy((char *)mail_info->h_addr_list[0], (char *)&mail_server.sin_addr.s_addr, mail_info->h_length);
+
+    return mail_server;
 }
 
 char *get_domain_mx_server(char *domain_name)
@@ -311,68 +279,6 @@ char *get_domain_mx_server(char *domain_name)
     return mx_server;
 }
 
-char *str_replace(char *str, char *orig, char *rep)
-{
-    static char buffer[4096];
-    char *p;
-
-    if (!(p = strstr(str, orig))) // Is 'orig' even in 'str'?
-        return str;
-
-    strncpy(buffer, str, p - str); // Copy characters from 'str' start to 'orig' st$
-    buffer[p - str] = '\0';
-
-    sprintf(buffer + (p - str), "%s%s", rep, p + strlen(orig));
-    return buffer;
-}
-
-char **str_split(char *a_str, const char a_delim)
-{
-    char **result = 0;
-    size_t count = 0;
-    char *tmp = a_str;
-    char *last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
-
-    /* Count how many elements will be extracted. */
-    while (*tmp)
-    {
-        if (a_delim == *tmp)
-        {
-            count++;
-            last_comma = tmp;
-        }
-        tmp++;
-    }
-
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
-
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    count++;
-    result = malloc(sizeof(char *) * count);
-
-    if (result)
-    {
-        size_t idx = 0;
-        char *token = strtok(a_str, delim);
-
-        while (token)
-        {
-            assert(idx < count);
-            *(result + idx++) = strdup(token);
-            token = strtok(0, delim);
-        }
-        assert(idx == count - 1);
-        *(result + idx) = 0;
-    }
-
-    return result;
-}
-
 /* после ОТПРАВКИ rename()
                         char *mail_old_full_name = malloc(strlen(user_dir_new) + strlen(new_entry->d_name));
                         strcpy(mail_old_full_name, user_dir_new);
@@ -390,15 +296,3 @@ char **str_split(char *a_str, const char a_delim)
                         else
                             printf("Error: unable to rename the file\n");
                             */
-
-void parse_record(unsigned char *buffer, size_t r,
-                  const char *section, ns_sect s, int idx, ns_msg *m)
-{
-    ns_rr rr;
-    int k = ns_parserr(m, s, idx, &rr);
-    if (k == -1)
-    {
-        //std::cerr << errno << " " << strerror(errno) << "\n";
-        return;
-    }
-}
