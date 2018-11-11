@@ -1,10 +1,12 @@
 #include "../include/scheduler.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <resolv.h>
 #include <netdb.h>
+#include <string.h>
+#include <assert.h>
+#include <stdio.h>
 
 #define N 4096
 #define MAX_FD_CNT 1024
@@ -13,9 +15,20 @@
 
 int run_client()
 {
-    char *mail_domains_msgs[3];
-    int count = get_out_mail_domains(mail_domains_msgs);
-    (void)count;
+    char *mail_domains[15];
+    int domains_count = get_out_mail_domains(mail_domains);
+    printf("domains count %d\n", domains_count);
+
+    for (int i = 0; i < domains_count; i++)
+    {
+        printf(" ------------------------------- \n");
+        printf("Mail domain %s\n", mail_domains[i]);
+        char *res = get_domain_mx_server(mail_domains[i]);
+                    printf("\t%s\n", res);
+        //get_domain_server_info(mail_domains_msgs[i].domain);
+        //bind socket for cur server
+        //save fd of sockets and run process
+    }
 
     // while (1)
     // {
@@ -45,8 +58,6 @@ int run_client()
 int get_out_mail_domains(char **domains)
 {
     int domains_count = 0;
-    (void)domains;
-    (void)domains_count;
 
     //run through users direrctories
     struct dirent *user_dir;
@@ -63,13 +74,11 @@ int get_out_mail_domains(char **domains)
             strcpy(user_dir_full_path, conf.mail_dir);
             strcat(user_dir_full_path, user_dir_name);
             strcat(user_dir_full_path, "/");
-            //printf("USER FULL PATH %s\n", user_dir_full_path);
 
             char *user_dir_new = malloc(strlen(user_dir_full_path) + 4);
             strcpy(user_dir_new, user_dir_full_path);
             strcat(user_dir_new, "new/");
 
-            //printf("USER NEW PATH %s\n", user_dir_new);
             DIR *new_dir = opendir(user_dir_new);
             if (new_dir == NULL)
                 printf("Could not open NEW directory");
@@ -83,36 +92,45 @@ int get_out_mail_domains(char **domains)
                 {
                     if (strcmp(new_entry->d_name, ".") != 0 && strcmp(new_entry->d_name, "..") != 0)
                     {
-                        /* после ОТПРАВКИ rename()
-                        char *mail_old_full_name = malloc(strlen(user_dir_new) + strlen(new_entry->d_name));
-                        strcpy(mail_old_full_name, user_dir_new);
-                        strcat(mail_old_full_name, new_entry->d_name);
+                        char **tokens;
+                        tokens = str_split(new_entry->d_name, '.');
 
-                        printf("NEW ENTRY %s\n", mail_old_full_name);
+                        char *first_part = tokens[2];
+                        char *second_part = tokens[3];
 
-                        char *mail_new_name = str_replace(mail_old_full_name, "new", "cur");
-                        printf("ENTRY NEW NAME%s\n", mail_new_name);
+                        char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
+                        strcpy(tmp_cur_mail_domain, first_part);
+                        strcat(tmp_cur_mail_domain, ".");
+                        strcat(tmp_cur_mail_domain, second_part);
+                        free(tokens);
 
-                        int ret;
-                        ret = rename(mail_old_full_name, mail_new_name);
-                        if (ret == 0)
-                            printf("File renamed successfully\n");
-                        else
-                            printf("Error: unable to rename the file\n");
-                            */
+                        tokens = str_split(tmp_cur_mail_domain, ',');
+                        //Проверяем, есть ли текущий домен массиве доменов
+                        int found_domain_num = -1;
+                        for (int i = 0; i < domains_count; i++)
+                        {
+                            if (strcmp(tokens[0], domains[i]) == 0)
+                                found_domain_num = i;
+                        }
+                        //Домен не найден - добавляем в массив
+                        if (found_domain_num < 0)
+                        {
+                            printf("ADDING  %s\n", tokens[0]);
+                            domains[domains_count] = tokens[0];
+                            domains_count++;
+                        }
+                        free(tokens);
                     }
                 }
             }
             else
-            {
                 printf("directory is EMPTY\n");
-            }
-        }
 
-        //closedir(mail_dir);
+            closedir(new_dir);
+        }
     }
     closedir(mail_dir);
-    return 0;
+    return domains_count;
 }
 
 int get_output_mails(struct MapItem *items)
@@ -261,38 +279,37 @@ void get_domain_server_info(char *domain_name)
     bcopy((char *)gmail_info->h_addr_list[0], (char *)&gmail_server.sin_addr.s_addr, gmail_info->h_length);
 }
 
-// void bullshit(char *domain_name)
-// {
-//     u_char nsbuf[N];
-//     char dispbuf[N];
-//     ns_msg msg;
-//     ns_rr rr;
-//     int i, l;
+char *get_domain_mx_server(char *domain_name)
+{
+    static char mx_server[4096];
+    u_char nsbuf[N];
+    ns_msg msg;
+    ns_rr rr;
+    int r;
+    
+    // MX RECORD
+    r = res_query(domain_name, ns_c_any, ns_t_mx, nsbuf, sizeof(nsbuf));
+    if (r < 0)
+        perror(domain_name);
+    else
+    {
+        ns_initparse(nsbuf, r, &msg);
+        ns_parserr(&msg, ns_s_an, 0, &rr);
 
-//     // HEADER
-//     printf("Domain : %s\n", domain_name);
+        const size_t size = NS_MAXDNAME;
+        unsigned char name[size];
+        int t = ns_rr_type(rr);
 
-//     //------------
-//     // MX RECORD
-//     printf("MX records : \n");
-//     l = res_query(domain_name, ns_c_any, ns_t_mx, nsbuf, sizeof(nsbuf));
-//     if (l < 0)
-//     {
-//         perror(domain_name);
-//     }
-//     else
-//     {
-//         /* just grab the MX answer info */
-//         ns_initparse(nsbuf, l, &msg);
-//         l = ns_msg_count(msg, ns_s_an);
-//         for (i = 0; i < l; i++)
-//         {
-//             ns_parserr(&msg, ns_s_an, i, &rr);
-//             ns_sprintrr(&msg, &rr, NULL, NULL, dispbuf, sizeof(dispbuf));
-//             printf("\t%s\n", dispbuf);
-//         }
-//     }
-// }
+        const u_char *data = ns_rr_rdata(rr);
+        if (t == T_MX)
+        {
+            ns_name_unpack(nsbuf, nsbuf + r, data + sizeof(u_int16_t), name, size);
+            ns_name_ntop(name, mx_server, 4096);
+        }
+    }
+
+    return mx_server;
+}
 
 char *str_replace(char *str, char *orig, char *rep)
 {
@@ -307,4 +324,81 @@ char *str_replace(char *str, char *orig, char *rep)
 
     sprintf(buffer + (p - str), "%s%s", rep, p + strlen(orig));
     return buffer;
+}
+
+char **str_split(char *a_str, const char a_delim)
+{
+    char **result = 0;
+    size_t count = 0;
+    char *tmp = a_str;
+    char *last_comma = 0;
+    char delim[2];
+    delim[0] = a_delim;
+    delim[1] = 0;
+
+    /* Count how many elements will be extracted. */
+    while (*tmp)
+    {
+        if (a_delim == *tmp)
+        {
+            count++;
+            last_comma = tmp;
+        }
+        tmp++;
+    }
+
+    /* Add space for trailing token. */
+    count += last_comma < (a_str + strlen(a_str) - 1);
+
+    /* Add space for terminating null string so caller
+       knows where the list of returned strings ends. */
+    count++;
+    result = malloc(sizeof(char *) * count);
+
+    if (result)
+    {
+        size_t idx = 0;
+        char *token = strtok(a_str, delim);
+
+        while (token)
+        {
+            assert(idx < count);
+            *(result + idx++) = strdup(token);
+            token = strtok(0, delim);
+        }
+        assert(idx == count - 1);
+        *(result + idx) = 0;
+    }
+
+    return result;
+}
+
+/* после ОТПРАВКИ rename()
+                        char *mail_old_full_name = malloc(strlen(user_dir_new) + strlen(new_entry->d_name));
+                        strcpy(mail_old_full_name, user_dir_new);
+                        strcat(mail_old_full_name, new_entry->d_name);
+
+                        printf("NEW ENTRY %s\n", mail_old_full_name);
+
+                        char *mail_new_name = str_replace(mail_old_full_name, "new", "cur");
+                        printf("ENTRY NEW NAME%s\n", mail_new_name);
+
+                        int ret;
+                        ret = rename(mail_old_full_name, mail_new_name);
+                        if (ret == 0)
+                            printf("File renamed successfully\n");
+                        else
+                            printf("Error: unable to rename the file\n");
+                            */
+
+void parse_record(unsigned char *buffer, size_t r,
+                  const char *section, ns_sect s, int idx, ns_msg *m)
+{
+    ns_rr rr;
+    int k = ns_parserr(m, s, idx, &rr);
+    if (k == -1)
+    {
+        //std::cerr << errno << " " << strerror(errno) << "\n";
+        return;
+    }
 }

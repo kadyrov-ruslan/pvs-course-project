@@ -23,11 +23,12 @@
 int run_client();
 int get_out_mail_domains(char **domains);
 char *str_replace(char *str, char *orig, char *rep);
+char **str_split(char *a_str, const char a_delim);
 
 
 int get_output_mails(struct MapItem *items);
 int count_dir_entries(const char *dirname);
-//void bullshit(char *domain_name);
+char *get_domain_mx_server(char *domain_name);
 
 void get_domain_server_info(char *domain_name);
 
