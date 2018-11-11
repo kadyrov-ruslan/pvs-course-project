@@ -7,6 +7,7 @@
 
 int run_client()
 {
+    int sockets_fd[15];
     char *mail_domains[15];
     int domains_count = get_out_mail_domains(mail_domains);
     printf("domains count %d\n", domains_count);
@@ -16,13 +17,38 @@ int run_client()
         printf(" ------------------------------- \n");
         printf("Mail domain %s\n", mail_domains[i]);
         char *res = get_domain_mx_server(mail_domains[i]);
-        struct sockaddr_in cur_domain_socket_info = get_domain_server_info(res);
+        struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
 
-        printf("server IP:%s\n",   inet_ntoa(cur_domain_socket_info.sin_addr));
-        printf("server port:%d\n", cur_domain_socket_info.sin_port);
+        printf("server IP:%s\n", inet_ntoa(cur_domain_srv.sin_addr));
+        printf("server port:%d\n", cur_domain_srv.sin_port);
 
-        //bind socket for cur server
-        //save fd of sockets and run process
+        cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
+        cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
+
+        int cur_domain_socket_fd = 0;
+        if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        {
+            printf("\n Error : Could not create socket \n");
+            return 1;
+        }
+
+        if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
+        {
+            printf("\n Error : Connect Failed \n");
+            return 1;
+        }
+        else
+        {
+            printf("\n SUCCESS : Connected \n");
+            sockets_fd[domains_count] = cur_domain_socket_fd;
+        }
+    }
+
+    for (int i = 0; i < domains_count; i++)
+    {
+        printf(" -------- SOCKETS --------------- \n");
+        printf("Mail domain %s\n", mail_domains[i]);
+        printf("Mail domain socket fd :%d\n", sockets_fd[i]);
     }
 
     // while (1)
@@ -254,7 +280,7 @@ char *get_domain_mx_server(char *domain_name)
     ns_msg msg;
     ns_rr rr;
     int r;
-    
+
     // MX RECORD
     r = res_query(domain_name, ns_c_any, ns_t_mx, nsbuf, sizeof(nsbuf));
     if (r < 0)
