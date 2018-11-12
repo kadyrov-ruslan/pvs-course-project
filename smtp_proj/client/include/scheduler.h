@@ -16,6 +16,7 @@
 
 int run_client();
 int get_out_mail_domains(char **domains);
+int get_domains_diff(int new_domains_count, char **new_mail_domains, char **dif);
 
 int get_output_mails(struct MapItem *items);
 char *get_domain_mx_server(char *domain_name);

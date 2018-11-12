@@ -5,70 +5,70 @@
 #define MAX_Q_LEN 10
 #define MAX_BUF_LEN 1024
 
+struct mail_domain_dscrptr mail_domains_dscrptrs[60];  
+int ready_domains_count = 0;
+
 int run_client()
 {
-    int sockets_fd[15];
-    char *mail_domains[15];
-    int domains_count = get_out_mail_domains(mail_domains);
-    printf("domains count %d\n", domains_count);
-
-    for (int i = 0; i < domains_count; i++)
+    while (1)
     {
-        printf(" ------------------------------- \n");
-        printf("Mail domain %s\n", mail_domains[i]);
-        char *res = get_domain_mx_server(mail_domains[i]);
-        struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
+        printf("\n ########### NEW PERIOD ############## \n");
+        char *raw_mail_domains[60];
+        int raw_domains_count = get_out_mail_domains(raw_mail_domains);
+        printf("WHOLE domains count %d\n", raw_domains_count);
 
-        printf("server IP:%s\n", inet_ntoa(cur_domain_srv.sin_addr));
-        printf("server port:%d\n", cur_domain_srv.sin_port);
+        // выбираем только новые почтовые домены для получения mx записей и созданя сокета для них
+        char *mail_domains[60];
+        int domains_count = get_domains_diff(raw_domains_count, raw_mail_domains, mail_domains);
+        //free(raw_mail_domains);
 
-        cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
-        cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
-
-        int cur_domain_socket_fd = 0;
-        if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        printf("NEW domains count %d\n", domains_count);
+        for (int i = 0; i < domains_count; i++)
         {
-            printf("\n Error : Could not create socket \n");
-            return 1;
-        }
+            printf(" ------------------------------- \n");
+            printf("Mail domain %s\n", mail_domains[i]);
+            char *res = get_domain_mx_server(mail_domains[i]);
+            struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
+            cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
+            cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
 
-        if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
-        {
-            printf("\n Error : Connect Failed \n");
-            return 1;
-        }
-        else
-        {
-            printf("\n SUCCESS : Connected \n");
-            sockets_fd[domains_count] = cur_domain_socket_fd;
-        }
-    }
+            printf("server IP:%s\n", inet_ntoa(cur_domain_srv.sin_addr));
+            mail_domains_dscrptrs[ready_domains_count].domain = mail_domains[i];
+            mail_domains_dscrptrs[ready_domains_count].domain_mail_server = cur_domain_srv;
 
-    for (int i = 0; i < domains_count; i++)
-    {
+            int cur_domain_socket_fd = 0;
+            if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            {
+                printf("\n Error : Could not create socket \n");
+                return 1;
+            }
+
+            if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
+            {
+                printf("\n Error : Connect Failed \n");
+                return 1;
+            }
+            else
+            {
+                printf("\n SUCCESS : Connected \n");
+                mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
+            }
+
+            ready_domains_count++;
+        }
+        //free(mail_domains);
+
         printf(" -------- SOCKETS --------------- \n");
-        printf("Mail domain %s\n", mail_domains[i]);
-        printf("Mail domain socket fd :%d\n", sockets_fd[i]);
+        for (int i = 0; i < ready_domains_count; i++)
+        {
+            printf("Mail domain: %s\n", mail_domains_dscrptrs[i].domain);
+            printf("Mail domain socket fd: %d\n\n", mail_domains_dscrptrs[i].socket_fd);
+        }
+        printf(" -------------------------------- \n");
+
+        sleep(15);
     }
 
-    // while (1)
-    // {
-    //     printf(" ########### NEW PERIOD ############## \n");
-    //     //Check mail domains' folder for new messages
-    //     struct MapItem mail_domains_msgs[3];
-    //     int mail_domains_count = get_output_mails(mail_domains_msgs);
-
-    //     printf("domains Mails count %d\n", mail_domains_count);
-
-    //     for (int i = 0; i < mail_domains_count; i++)
-    //     {
-    //         printf(" ------------------------------- \n");
-    //         printf("Mail domain %s\n", mail_domains_msgs[i].domain);
-    //         //bind socket for cur server
-    //         //save fd of sockets and run process
-    //     }
-    //     sleep(5);
-    // }
     return 1;
 }
 
@@ -133,7 +133,7 @@ int get_out_mail_domains(char **domains)
                         //Домен не найден - добавляем в массив
                         if (found_domain_num < 0)
                         {
-                            printf("ADDING  %s\n", tokens[0]);
+                            printf("ADDING  %s\n\n", tokens[0]);
                             domains[domains_count] = tokens[0];
                             domains_count++;
                         }
@@ -149,6 +149,30 @@ int get_out_mail_domains(char **domains)
     }
     closedir(mail_dir);
     return domains_count;
+}
+
+//получает разницу между уже готовыми доменами и доменами, по которым нужно отправить почту
+int get_domains_diff(int new_domains_count, char **new_mail_domains, char **dif)
+{
+    //printf("new domains count %d\n", new_domains_count);
+    //printf("ready domains count %d\n", ready_domains_count);
+    int diff_count = 0;
+    for (int j = 0; j < new_domains_count; j++)
+    {
+        bool is_found = false;
+        for (int i = 0; i < ready_domains_count; i++)
+        {
+            if (strcmp(new_mail_domains[j], mail_domains_dscrptrs[i].domain) == 0)
+                is_found = true;
+        }
+
+        if (!is_found)
+        {
+            dif[diff_count] = new_mail_domains[j];
+            diff_count++;
+        }
+    }
+    return diff_count;
 }
 
 int get_output_mails(struct MapItem *items)
@@ -260,9 +284,7 @@ struct sockaddr_in get_domain_server_info(char *domain_name)
 
     mail_ip = (char *)malloc(INET_ADDRSTRLEN + 1);
     inet_ntop(AF_INET, mail_info->h_addr_list[0], mail_ip, INET_ADDRSTRLEN);
-    //printf("server IP:%s\n", mail_ip);
     free(mail_ip);
-    //printf("server Name:%s\n", (char *)mail_info->h_name);
 
     //filling struct sockaddr_in gmail_server in the ip and the port of the server (from struct hostent* gmail_info)
     bzero(&mail_server, sizeof(mail_server));
