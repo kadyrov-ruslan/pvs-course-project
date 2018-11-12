@@ -19,8 +19,13 @@ int get_out_mail_domains(char **domains);
 int get_domains_diff(int new_domains_count, char **new_mail_domains, char **dif);
 
 int get_output_mails(struct MapItem *items);
-char *get_domain_mx_server(char *domain_name);
 
+char *get_domain_mx_server(char *domain_name);
 struct sockaddr_in get_domain_server_info(char *domain_name);
+
+int read_fd_line(int fd, char *line, int lim);
+void get_suffix(char *buf);
+void send_to_server(int socket_fd);
+void send_data(char *data, int toRead, int socket_fd);
 
 #endif // _SCHEDULER_H_
