@@ -4,7 +4,6 @@
 #define MAX_FD_CNT 1024
 #define MAX_Q_LEN 10
 #define MAX_BUF_LEN 1024
-#define INITIAL_SIZE 10 //initial size of 'buffer'
 
 struct mail_domain_dscrptr mail_domains_dscrptrs[60];
 int ready_domains_count = 0;
@@ -12,7 +11,8 @@ int ready_domains_count = 0;
 char s[3];    //string to store 's: '
 char c[3];    //string to store 'c: '
 char *suffix; //string to store server suffix
-char *msg;    //string to store msg body
+
+char buf[MAX_BUF_LEN];
 
 char *buffer;                 //dynamically allocated char array to get messages from the server
 int length;                   //current size of buffer
@@ -22,7 +22,7 @@ int run_client()
 {
     while (1)
     {
-        printf("\n ########### NEW PERIOD ############## \n");
+        printf("\n########### NEW PERIOD ############## \n");
         char *raw_mail_domains[60];
         int raw_domains_count = get_out_mail_domains(raw_mail_domains);
         printf("WHOLE domains count %d\n", raw_domains_count);
@@ -62,15 +62,12 @@ int run_client()
             {
                 printf("\n SUCCESS : Connected \n");
                 mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
+
+                read_fd_line(cur_domain_socket_fd, buf, MAX_BUF_LEN);
+                check_server_response_code(buf);
+                printf("%s\n", buf);
+                get_suffix(buf);
             }
-
-            char buf[MAX_BUF_LEN];
-            read_fd_line(cur_domain_socket_fd, buf, MAX_BUF_LEN);
-            //checkServerReturnedCode(buf);
-            printf("%s", s);
-            printf("%s\n", buf);
-            get_suffix(buf);
-
             ready_domains_count++;
         }
         //free(mail_domains);
@@ -82,8 +79,8 @@ int run_client()
             printf("Mail domain socket fd: %d\n\n", mail_domains_dscrptrs[i].socket_fd);
         }
         printf(" -------------------------------- \n");
-        
-        if(domains_count > 0)
+
+        if (domains_count > 0)
             process_output_mails();
         sleep(25);
     }
@@ -225,13 +222,12 @@ int process_output_mails()
             int mails_count = count_dir_entries(user_dir_new);
             if (mails_count > 0)
             {
-                char *email_full_names[mails_count];    
-                char *email_short_names[mails_count];   
+                char *email_full_names[mails_count];
+                char *email_short_names[mails_count];
                 int mail_names_count = 0;
 
                 printf("directory is NOT EMPTY\n");
                 struct dirent *new_entry;
-                //reading emails full and short names
                 while ((new_entry = readdir(new_dir)) != NULL)
                 {
                     if (strcmp(new_entry->d_name, ".") != 0 && strcmp(new_entry->d_name, "..") != 0)
@@ -243,16 +239,15 @@ int process_output_mails()
                         email_full_names[mail_names_count] = email_full_name;
                         email_short_names[mail_names_count] = new_entry->d_name;
                         mail_names_count++;
-
-                        //free(email_full_name);                    
+                        //free(email_full_name);
                     }
                 }
 
+                //Обрабатываем каждое письмо - чтение в память, отправка и rename()
                 for (int j = 0; j < mails_count; j++)
                 {
                     //printf("EMAIL FULL NAME %s\n", email_full_names[j]);
                     //printf("EMAIL SHORT NAME %s\n", email_short_names[j]);
-
                     char *email_name = malloc(strlen(email_short_names[j]) + 1);
                     strcpy(email_name, email_short_names[j]);
 
@@ -276,23 +271,25 @@ int process_output_mails()
                     {
                         if (strcmp(mail_domains_dscrptrs[i].domain, cur_email_domain) == 0)
                         {
-                            //read file to buf
-                            //send_to_server(mail_domains_dscrptrs[i].socket_fd);
                             printf("EMAIL DOMAIN %s\n", cur_email_domain);
                             printf("EMAIL NAME %s\n", email_short_names[j]);
+                            char *email_msg = read_msg_file(email_full_names[j]);
+                            printf("EMAIL FILE MSG %s\n", email_msg);
+
                             printf("SENDING DATA . . . \n");
+                            send_msg_to_server(mail_domains_dscrptrs[i].socket_fd, email_msg);
 
                             //printf("NEW ENTRY %s\n", email_full_names[j]);
-                            char *email_new_name = str_replace(email_full_names[j], "new", "cur");
+                            //char *email_new_name = str_replace(email_full_names[j], "new", "cur");
                             //printf("ENTRY NEW NAME %s\n", email_new_name);
-
+                            /*
                             int ret;
                             ret = rename(email_full_names[j], email_new_name);
                             if (ret == 0)
                                 printf("File renamed successfully\n");
                             else
                                 printf("Error: unable to rename the file\n");
-
+                            */
                             break;
                         }
                     }
@@ -388,7 +385,6 @@ void get_suffix(char *buf)
     char *tmp;
     const char space[3] = " ";
 
-    //--------getting the suffix------//
     /* get the first token */
     token = strtok(buf, space);
     /* walking through other tokens until we reached the last word which is the suffix */
@@ -406,13 +402,13 @@ void get_suffix(char *buf)
     free(tmp);
 }
 
-void send_to_server(int socket_fd)
+void send_msg_to_server(int socket_fd, char *msg)
 {
     char buf[MAX_BUF_LEN];
     char *token;
     const char line[3] = "\n";
 
-    //--------sending HELO----------------//
+    //sending HELO
     bzero(buf, MAX_BUF_LEN);
     gethostname(myHostName, MAX_BUF_LEN);
     strcpy(buf, "HELO ");
@@ -421,36 +417,39 @@ void send_to_server(int socket_fd)
     send_data(buf, 0, socket_fd);
     bzero(buf, MAX_BUF_LEN);
     read_fd_line(socket_fd, buf, MAX_BUF_LEN);
-    //checkServerReturnedCode(buf);
+    check_server_response_code(buf);
     printf("%s", s);
-    printf("%s\n", buf);
 
-    //--------sending MAIL FROM----------//
+    //sending MAIL FROM
     bzero(buf, MAX_BUF_LEN);
-    sprintf(buf, "MAIL FROM:");
+    sprintf(buf, "MAIL FROM: <");
     token = strtok(msg, line);
     strcat(buf, token);
-    strcat(buf, "\n");
+    strcat(buf, ">\n");
     send_data(buf, 1, socket_fd);
 
-    //--------sending RCPT TO------------//
+    //sending RCPT TO
     bzero(buf, MAX_BUF_LEN);
-    strcpy(buf, "RCPT TO:");
+    strcpy(buf, "RCPT TO:<");
     token = strtok(NULL, line);
     strcat(buf, token);
-    strcat(buf, "\n");
+    strcat(buf, ">\n");
+    printf("%s\n", buf);
     send_data(buf, 1, socket_fd);
 
-    //--------sending DATA------//
+    //sending DATA
     bzero(buf, MAX_BUF_LEN);
     strcpy(buf, "DATA\n");
+    printf("%s\n", buf);
     send_data(buf, 1, socket_fd);
 
-    //--------sending the body--------------//
+    printf("sending the body \n");
+    //sending the body
     token = strtok(NULL, line);
     //sending the headers
-    while (strlen(token) != 1)
-    { //this condition means iterate on the token until you get to the black line(strlen=1)
+    while (token != NULL)
+    {
+        //this condition means iterate on the token until you get to the black line(strlen=1)
         //which separates the message headers from the message body
         bzero(buf, MAX_BUF_LEN);
         strcpy(buf, token);
@@ -458,6 +457,7 @@ void send_to_server(int socket_fd)
         send_data(buf, 0, socket_fd);
         token = strtok(NULL, line);
     }
+    printf("sending the msg body \n");
     //sending the msg body
     while (token != NULL)
     {
@@ -466,10 +466,10 @@ void send_to_server(int socket_fd)
         token = strtok(NULL, line);
     }
 
-    //---sending point to end body--------//
+    //sending point to end body
     send_data("\r\n.\r\n", 1, socket_fd);
 
-    //--------sending quit to end connection---------//
+    //sending quit to end connection
     bzero(buf, MAX_BUF_LEN);
     strcpy(buf, "QUIT\n");
     send_data(buf, 1, socket_fd);
@@ -478,7 +478,7 @@ void send_to_server(int socket_fd)
 //this method writes and read data to/from the socket.
 void send_data(char *data, int toRead, int socket_fd)
 {
-    //-------writing the data to the server and printing it to the screen----------//
+    //writing the data to the server and printing it to the screen
     int n = 0;
     n = write(socket_fd, data, strlen(data));
     if (n < 0)
@@ -497,21 +497,20 @@ void send_data(char *data, int toRead, int socket_fd)
         printf("%s\n", data);
     }
 
-    //---reading messages from the server dynamically-----------//
-
+    //reading messages from the server dynamically
     if (toRead == 1)
     {                           //this means we need to read as well from the socket
         char tmp[INITIAL_SIZE]; //tmp string to store parts of the message
         int tmp_length = INITIAL_SIZE;
         int bytes = 0;
-        //-----initializing buffer------------//
+        //initializing buffer
         buffer = (char *)malloc(INITIAL_SIZE);
         length = INITIAL_SIZE;
         bzero(buffer, length);
         bzero(tmp, tmp_length);
         while (1)
         {
-            //--------reading data------------------//
+            //reading data
             bzero(tmp, tmp_length);
             bytes += read(socket_fd, tmp, tmp_length - 1); //it reads length-1 to save space for '\0'.
             if (bytes < 0)
@@ -519,31 +518,44 @@ void send_data(char *data, int toRead, int socket_fd)
                 printf("%s\n", strerror(errno));
                 exit(0);
             }
-            //---checking if the buffer has enough length to contain the part of the message--------------//
+            //checking if the buffer has enough length to contain the part of the message
             if (bytes < length)
-            {
                 strcat(buffer, tmp);
-            }
-            //----checking if the buffer does not has enough length to contain the part of the message
-            //therefore it need to be realloced------------------//
+
+            //checking if the buffer does not has enough length to contain the part of the message
+            //therefore it need to be realloced
             if (bytes >= length)
             {
                 length = bytes;
                 buffer = (char *)realloc(buffer, length + 1);
                 strcat(buffer, tmp);
             }
-            //---checking if we reached the suffix of the server------------//
+
+            //checking if we reached the suffix of the server
             if (strstr(buffer, suffix) != NULL)
-            {
                 break;
-            }
         }
-        //---checking if code is valid -----------/
-        //if (strcmp(data, "DATA\n") != 0)
-        //  checkServerReturnedCode(buffer);
-        //---printing the message and freeing the buffer ---------/
+        //checking if code is valid
+        if (strcmp(data, "DATA\n") != 0)
+            check_server_response_code(buffer);
+        //printing the message and freeing the buffer
         printf("%s", s);
         printf("%s\n", buffer);
         free(buffer);
+    }
+}
+
+//gets the code of the msg
+void check_server_response_code(char *buf)
+{
+    char server_returned_code[4] = "   ";
+    memcpy(server_returned_code, buf, strlen(server_returned_code));
+    int code = 0;
+    code = atoi(server_returned_code);
+    if (code < 200 || code > 300)
+    {
+        printf("code number:%d\n", code);
+        printf("ERROR:%s\n", buf);
+        exit(0);
     }
 }

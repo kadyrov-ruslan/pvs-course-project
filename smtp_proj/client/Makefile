@@ -8,7 +8,7 @@ OBJ_DIR = obj
 LIB = -lconfig -lresolv
 TARGET = smtp_client
 
-SRC = client.c scheduler.c ../../common/src/log.c ../../common/src/string_utils.c ../../common/src/dir_utils.c
+SRC = client.c scheduler.c msg.c ../../common/src/log.c ../../common/src/string_utils.c ../../common/src/dir_utils.c
 OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o, $(SRC:.c=.o))
 
 all: client

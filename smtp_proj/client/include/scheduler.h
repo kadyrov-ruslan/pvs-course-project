@@ -13,6 +13,7 @@
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
 #include "../include/client_types.h"
+#include "../include/msg.h"
 
 int run_client();
 int get_out_mail_domains(char **domains);
@@ -24,7 +25,9 @@ struct sockaddr_in get_domain_server_info(char *domain_name);
 
 int read_fd_line(int fd, char *line, int lim);
 void get_suffix(char *buf);
-void send_to_server(int socket_fd);
+void send_msg_to_server(int socket_fd, char *msg);
 void send_data(char *data, int toRead, int socket_fd);
+void check_server_response_code(char *buf);
+void get_suffix(char* buf);
 
 #endif // _SCHEDULER_H_
