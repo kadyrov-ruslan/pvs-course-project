@@ -2,6 +2,7 @@
 #define _CLIENT_TYPES_H_
 
 #include "../../common/include/log.h"
+#include "mail_domain.h"
 
 #include <errno.h>
 #include <libconfig.h>
@@ -21,6 +22,8 @@ struct client_conf
 	const char *mail_dir;
 	//const char *queue_dir;
 	const char *hostname;
+
+	struct MailDomain mail_domains[3]; 
 };
 
 extern struct client_conf conf;

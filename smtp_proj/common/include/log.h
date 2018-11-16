@@ -3,13 +3,12 @@
 
 #include <unistd.h>
 
-typedef enum log_level_type
+typedef enum
 {
-	ERROR,
 	INFO,
 	WARN,
+	ERROR,
 	DEBUG,
-	LOG_LVL_LAST
 } log_level;
 
 typedef enum

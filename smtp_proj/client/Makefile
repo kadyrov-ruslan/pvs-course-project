@@ -1,14 +1,14 @@
 CC = gcc
 CFLAGS = -Wall -Werror -std=gnu99 -ggdb3
-LDFLAGS=-pthread  -lrt
+LDFLAGS=-lresolv  -lrt
 
 INC = -I include -I ../common/include
 SRC_DIR = src
 OBJ_DIR = obj
-LIB = -lconfig -lpthread
+LIB = -lconfig -lresolv
 TARGET = smtp_client
 
-SRC = client.c ../../common/src/log.c scheduler.c
+SRC = client.c scheduler.c msg.c ../../common/src/log.c ../../common/src/string_utils.c ../../common/src/dir_utils.c
 OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o, $(SRC:.c=.o))
 
 all: client

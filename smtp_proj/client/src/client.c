@@ -30,7 +30,6 @@ static int client_parse_config(void)
     struct stat mail_dir_st;
     struct stat log_file_st;
     int log_lvl;
-    //struct stat queue_dir_st;
     const char *user_group;
     struct passwd *pwd;
     struct group *gr;
@@ -104,18 +103,6 @@ static int client_parse_config(void)
         return -1;
     }
 
-    /*if (config_lookup_string(&client_conf, "queue_dir", &conf.queue_dir) != CONFIG_TRUE)
-    {
-        log_e("%s", "incorrect `queue_dir'");
-        return -1;
-    }*/
-
-    /*if (stat(conf.queue_dir, &queue_dir_st) != 0)
-    {
-        log_e("incorrect queue dir: %s", strerror(errno));
-        return -1;
-    }*/
-
     if (config_setting_lookup_string(system, "user", &user_group) != CONFIG_TRUE)
     {
         log_e("%s", "No `user' parametr in config");
@@ -154,12 +141,24 @@ static int client_parse_config(void)
         return -1;
     }
 
-    /*if (queue_dir_st.st_uid != pwd->pw_uid || queue_dir_st.st_gid != gr->gr_gid)
-    {
-        log_e("access denied to %s", conf.queue_dir);
-        return -1;
-    }*/
+    struct MailDomain mail_domains[3] =
+        {
+            {
+                "mailru",
+                "smtp.mail.ru",
+            },
+            {
+                "yandex",
+                "smtp.yandex.ru",
+            },
+            {
+                "gmail",
+                "smtp.gmail.com",
+            }};
 
+    conf.mail_domains[0] = mail_domains[0];
+    conf.mail_domains[1] = mail_domains[1];
+    conf.mail_domains[2] = mail_domains[2];
     return 0;
 }
 
