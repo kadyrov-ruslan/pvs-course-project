@@ -5,9 +5,6 @@
 #define MAX_Q_LEN 10
 #define MAX_BUF_LEN 1024
 
-struct mail_domain_dscrptr mail_domains_dscrptrs[60];
-int ready_domains_count = 0;
-
 char s[3];    //string to store 's: '
 char c[3];    //string to store 'c: '
 char *suffix; //string to store server suffix
@@ -17,6 +14,11 @@ char buf[MAX_BUF_LEN];
 char *buffer;                 //dynamically allocated char array to get messages from the server
 int length;                   //current size of buffer
 char myHostName[MAX_BUF_LEN]; //string to store my host name
+
+
+
+struct mail_domain_dscrptr mail_domains_dscrptrs[60];
+int ready_domains_count = 0;
 
 int run_client()
 {
@@ -82,7 +84,7 @@ int run_client()
 
         if (domains_count > 0)
             process_output_mails();
-        sleep(25);
+        sleep(20);
     }
 
     return 1;
@@ -136,7 +138,7 @@ int get_out_mail_domains(char **domains)
                         strcpy(tmp_cur_mail_domain, first_part);
                         strcat(tmp_cur_mail_domain, ".");
                         strcat(tmp_cur_mail_domain, second_part);
-                        free(tokens);
+                        //free(tokens);
 
                         tokens = str_split(tmp_cur_mail_domain, ',');
                         //Проверяем, есть ли текущий домен массиве доменов
@@ -280,16 +282,16 @@ int process_output_mails()
                             send_msg_to_server(mail_domains_dscrptrs[i].socket_fd, email_msg);
 
                             //printf("NEW ENTRY %s\n", email_full_names[j]);
-                            //char *email_new_name = str_replace(email_full_names[j], "new", "cur");
+                            char *email_new_name = str_replace(email_full_names[j], "new", "cur");
                             //printf("ENTRY NEW NAME %s\n", email_new_name);
-                            /*
+                            
                             int ret;
                             ret = rename(email_full_names[j], email_new_name);
                             if (ret == 0)
                                 printf("File renamed successfully\n");
                             else
                                 printf("Error: unable to rename the file\n");
-                            */
+                            
                             break;
                         }
                     }
