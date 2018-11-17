@@ -4,8 +4,11 @@
 #include <stdint.h>
 
 struct conn_opts {
-    char ip[32];
-    uint16_t port;
+    const char* ip;
+    const char* user;
+    const char* group;
+    int port;
+    int process_count;
 };
 
 int accept_conn(struct conn_opts *options);

@@ -1,2 +1,3 @@
 # Server .gitignore
 obj/*
+smtp_server

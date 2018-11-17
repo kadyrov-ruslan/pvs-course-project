@@ -1,12 +1,13 @@
 CC = gcc
 CFLAGS = -Wall -Werror -std=c99
 
-INC = include
+INC = -I include -I ../common/include
 SRC_DIR = src
 OBJ_DIR = obj
-LIB = -lconfig -lpcre
+LIB = -lconfig
+TARGET = smtp_server
 
-SRC = server.c
+SRC = server.c conn.c
 OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o, $(SRC:.c=.o))
 
 all: server
@@ -16,7 +17,7 @@ server: $(OBJECTS)
 
 $(OBJECTS): $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c
 	mkdir -p $(OBJ_DIR)
-	$(CC) -o $@ $< $(CFLAGS) -I $(INC) $(LIB)
+	$(CC) -lrt -c -o $@ $< $(CFLAGS) -I $(INC) $(LIB)
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
