@@ -1,6 +1,8 @@
 #ifndef _MAP_H_
 #define _MAP_H_
 
+#include <resolv.h>
+
 struct MapItem {
     char *full_domain_dir;
     char *domain;

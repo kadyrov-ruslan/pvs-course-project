@@ -9,5 +9,6 @@
 
 char *str_replace(char *str, char *orig, char *rep);
 char **str_split(char *a_str, const char a_delim);
+int read_fd_line(int fd, char *line, int lim);
 
 #endif
