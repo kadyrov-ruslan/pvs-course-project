@@ -141,35 +141,11 @@ static int client_parse_config(void)
         return -1;
     }
 
-    struct MailDomain mail_domains[3] =
-        {
-            {
-                "mailru",
-                "smtp.mail.ru",
-            },
-            {
-                "yandex",
-                "smtp.yandex.ru",
-            },
-            {
-                "gmail",
-                "smtp.gmail.com",
-            }};
-
-    conf.mail_domains[0] = mail_domains[0];
-    conf.mail_domains[1] = mail_domains[1];
-    conf.mail_domains[2] = mail_domains[2];
     return 0;
 }
 
-int main(int argc, char *argv[])
+static int read_config(char *argv[])
 {
-    if (argc == 1)
-    {
-        log_e("%s", CLIENT_USAGE);
-        return -1;
-    }
-
     FILE *conf_f = fopen(argv[1], "r");
     if (conf_f == NULL)
     {
@@ -193,7 +169,18 @@ int main(int argc, char *argv[])
 
     printf("config is correct. Ready to start client\n");
     log_i("config `%s' is correct. Ready to start client", argv[1]);
+    return 0;
+}
 
+int main(int argc, char *argv[])
+{
+    if (argc == 1)
+    {
+        log_e("%s", CLIENT_USAGE);
+        return -1;
+    }
+
+    read_config(argv);
     run_client();
     return 0;
 }
