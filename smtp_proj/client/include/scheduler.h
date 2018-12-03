@@ -9,6 +9,8 @@
 #include "../include/smtp_client.h"
 #include "../include/client_types.h"
 #include "../include/msg.h"
+#include <sys/select.h>
+#include <sys/wait.h>
 
 #define MAX_FD_CNT 1024
 

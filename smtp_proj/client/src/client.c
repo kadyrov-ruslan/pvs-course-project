@@ -15,12 +15,14 @@ static config_t client_conf;
 static char hostname_sys[NAME_MAX];
 struct client_conf conf;
 
-__attribute__((constructor)) static void client_init(void)
+__attribute__((constructor)) 
+static void client_init(void)
 {
     config_init(&client_conf);
 }
 
-__attribute__((destructor)) static void client_deinit(void)
+__attribute__((destructor)) 
+static void client_deinit(void)
 {
     config_destroy(&client_conf);
 }
