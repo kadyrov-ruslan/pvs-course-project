@@ -1,6 +1,6 @@
 #include "../include/smtp_client.h"
 
-//this method gets the suffix of the mail server.
+//Gets suffix of the mail server
 void get_suffix(char *buf)
 {
     char *token;
@@ -97,7 +97,7 @@ void send_msg_to_server(int socket_fd, char *msg)
     send_data(buf, 1, socket_fd);
 }
 
-//this method writes and read data to/from the socket.
+//Writes and reads data to/from output socket
 void send_data(char *data, int toRead, int socket_fd)
 {
     //writing the data to the server and printing it to the screen
@@ -167,7 +167,7 @@ void send_data(char *data, int toRead, int socket_fd)
     }
 }
 
-//gets the code of the msg
+//Gets code of response msg
 void check_server_response_code(char *buf)
 {
     char server_returned_code[4] = "   ";

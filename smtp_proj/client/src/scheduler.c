@@ -3,71 +3,204 @@
 struct mail_domain_dscrptr mail_domains_dscrptrs[60];
 int ready_domains_count = 0;
 
-int run_client()
+//Названия доменов, по которым есть новая почта
+char *new_mails_domains[60];
+
+int run_client_async()
 {
+    fd_set read_fds;
+    fd_set write_fds;
+    fd_set except_fds;
+
+    struct timeval tv;
+    int retval;
+    /* Watch stdin (fd 0) to see when it has input. */
+
+    FD_ZERO(&read_fds);
+    //FD_SET(STDIN_FILENO, read_fds);
+    //FD_SET(server->socket, read_fds);
+
+    FD_ZERO(&write_fds);
+    // there is smth to send, set up write_fd for server socket
+    // if (server->send_buffer.current > 0)
+    //     FD_SET(server->socket, write_fds);
+
+    FD_ZERO(&except_fds);
+    //FD_SET(STDIN_FILENO, except_fds);
+    //FD_SET(server->socket, except_fds);
+
+    /* Wait up to five seconds. */
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    int maxfd = 50;
     while (1)
     {
-        printf("\n########### NEW PERIOD ############## \n");
-        char *raw_mail_domains[60];
-        int raw_domains_count = get_out_mail_domains(raw_mail_domains);
-        printf("WHOLE domains count %d\n", raw_domains_count);
+        // Select() updates fd_set's, so we need to build fd_set's before each select()call.
+        //build_fd_sets(&server, &read_fds, &write_fds, &except_fds);
 
-        // выбираем только новые почтовые домены для получения mx записей и созданя сокета для них
-        char *mail_domains[60];
-        int domains_count = get_domains_diff(raw_domains_count, raw_mail_domains, mail_domains);
-        //free(raw_mail_domains);
-
-        printf("NEW domains count %d\n", domains_count);
-        for (int i = 0; i < domains_count; i++)
+        int activity = select(maxfd + 1, &read_fds, &write_fds, &except_fds, NULL);
+        switch (activity)
         {
-            printf(" ------------------------------- \n");
-            printf("Mail domain %s\n", mail_domains[i]);
-            char *res = get_domain_mx_server_name(mail_domains[i]);
-            struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
-            cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
-            cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
+        case -1:
+            perror("select()");
+            shutdown_properly(EXIT_FAILURE);
 
-            printf("server IP:%s\n", inet_ntoa(cur_domain_srv.sin_addr));
-            mail_domains_dscrptrs[ready_domains_count].domain = mail_domains[i];
-            mail_domains_dscrptrs[ready_domains_count].domain_mail_server = cur_domain_srv;
+        case 0:
+            // you should never get here
+            printf("select() returns 0.\n");
+            shutdown_properly(EXIT_FAILURE);
 
-            int cur_domain_socket_fd = 0;
-            if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-            {
-                printf("\n Error : Could not create socket \n");
-                return 1;
-            }
+        default:
+            /* All fd_set's should be checked. */
+            // if (FD_ISSET(STDIN_FILENO, &read_fds))
+            // {
+            //     if (handle_read_from_stdin(&server, client_name) != 0)
+            //         shutdown_properly(EXIT_FAILURE);
+            // }
 
-            if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
-            {
-                printf("\n Error : Connect Failed \n");
-                return 1;
-            }
-            else
-            {
-                printf("\n SUCCESS : Connected \n");
-                mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
+            // if (FD_ISSET(STDIN_FILENO, &except_fds))
+            // {
+            //     printf("except_fds for stdin.\n");
+            //     shutdown_properly(EXIT_FAILURE);
+            // }
 
-                read_fd_line(cur_domain_socket_fd, buf, MAX_BUF_LEN);
-                check_server_response_code(buf);
-                printf("%s\n", buf);
-                get_suffix(buf);
-            }
-            ready_domains_count++;
+            // if (FD_ISSET(server.socket, &read_fds))
+            // {
+            //     if (receive_from_peer(&server, &handle_received_message) != 0)
+            //         shutdown_properly(EXIT_FAILURE);
+            // }
+
+            // if (FD_ISSET(server.socket, &write_fds))
+            // {
+            //     if (send_to_peer(&server) != 0)
+            //         shutdown_properly(EXIT_FAILURE);
+            // }
+
+            // if (FD_ISSET(server.socket, &except_fds))
+            // {
+            //     printf("except_fds for server.\n");
+            //     shutdown_properly(EXIT_FAILURE);
+            // }
         }
-        //free(mail_domains);
+    }
+}
 
-        printf(" -------- SOCKETS --------------- \n");
-        for (int i = 0; i < ready_domains_count; i++)
+int run_client()
+{
+    //1. создаем два дочерних процесса
+    //2. в каждом процессе свой while с select
+    //3. чекаем каталоги и спихиваем по round robin в процессы
+    //4. каждый процесс обновляет свои массивы дескрипторов и работает
+
+    //в родительском процессе необходимо иметь дескрипторы дочерних процессов,
+    //которые будут содержать число почтовых доменов и переданных писем в каждый дочерний процесс
+
+    //todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
+
+    pid_t child_a, child_b;
+    void* shmem_child_a = create_shared_memory(128);
+    void* shmem_child_b = create_shared_memory(128);
+
+    child_a = fork();
+    if (child_a == 0)
+    {
+        /* Child A code */       
+        // Принимаем из род.процесса дескрипторы почтовых доменов
+        // При необходимости создаем сокет
+        // Шарим по каталогам и читаем письма
+        // Отправляем письма
+
+        char* mail_dom = shmem_child_b;
+    }
+    else
+    {
+        child_b = fork();
+        if (child_b == 0)
         {
-            printf("Mail domain: %s\n", mail_domains_dscrptrs[i].domain);
-            printf("Mail domain socket fd: %d\n\n", mail_domains_dscrptrs[i].socket_fd);
-        }
-        printf(" -------------------------------- \n");
+            /* Child B code */
+            // Принимаем из род.процесса дескрипторы почтовых доменов
+            // При необходимости создаем сокет
+            // Шарим по каталогам и читаем письма
+            // Отправляем письма
 
-        if (domains_count > 0)
-            process_output_mails();
-        sleep(20);
+            char* mail_dom = shmem_child_b;
+            
+        }
+        else
+        {
+            /* Parent Code */
+            int new_mails_domains_count = 10;
+            for (int i = 0; i < new_mails_domains_count; i++)
+            {
+                memcpy(shmem_child_a, new_mails_domains[i], sizeof(new_mails_domains[i]));
+            }
+
+            while (1)
+            {
+                printf("\n########### NEW PERIOD ############## \n");
+                char *raw_mail_domains[60];
+                int raw_domains_count = get_out_mail_domains(raw_mail_domains);
+                printf("WHOLE domains count %d\n", raw_domains_count);
+
+                // выбираем только новые почтовые домены для получения mx записей и созданя сокета для них
+                char *mail_domains[60];
+                int domains_count = get_domains_diff(raw_domains_count, raw_mail_domains, mail_domains);
+                //free(raw_mail_domains);
+
+                printf("NEW domains count %d\n", domains_count);
+                for (int i = 0; i < domains_count; i++)
+                {
+                    printf(" ------------------------------- \n");
+                    printf("Mail domain %s\n", mail_domains[i]);
+                    char *res = get_domain_mx_server_name(mail_domains[i]);
+                    struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
+                    cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
+                    cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
+
+                    printf("server IP:%s\n", inet_ntoa(cur_domain_srv.sin_addr));
+                    mail_domains_dscrptrs[ready_domains_count].domain = mail_domains[i];
+                    mail_domains_dscrptrs[ready_domains_count].domain_mail_server = cur_domain_srv;
+
+                    int cur_domain_socket_fd = 0;
+                    if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                    {
+                        printf("\n Error : Could not create socket \n");
+                        return 1;
+                    }
+
+                    if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
+                    {
+                        printf("\n Error : Connect Failed \n");
+                        return 1;
+                    }
+                    else
+                    {
+                        printf("\n SUCCESS : Connected \n");
+                        mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
+
+                        read_fd_line(cur_domain_socket_fd, buf, MAX_BUF_LEN);
+                        check_server_response_code(buf);
+                        printf("%s\n", buf);
+                        get_suffix(buf);
+                    }
+                    ready_domains_count++;
+                }
+                //free(mail_domains);
+
+                printf(" -------- SOCKETS --------------- \n");
+                for (int i = 0; i < ready_domains_count; i++)
+                {
+                    printf("Mail domain: %s\n", mail_domains_dscrptrs[i].domain);
+                    printf("Mail domain socket fd: %d\n\n", mail_domains_dscrptrs[i].socket_fd);
+                }
+                printf(" -------------------------------- \n");
+
+                if (domains_count > 0)
+                    process_output_mails();
+                sleep(120);
+            }
+        }
     }
 
     return 1;
