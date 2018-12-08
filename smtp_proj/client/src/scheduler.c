@@ -1,6 +1,8 @@
 #include "../include/scheduler.h"
 
 struct mail_domain_dscrptr mail_domains_dscrptrs[60];
+struct mail_process_dscrptr mail_procs[2];
+
 int ready_domains_count = 0;
 
 //Названия доменов, по которым есть новая почта
@@ -97,48 +99,41 @@ int run_client()
     //которые будут содержать число почтовых доменов и переданных писем в каждый дочерний процесс
 
     //todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
+    //autofsm для smtp протокола
 
-    pid_t child_a, child_b;
-    void* shmem_child_a = create_shared_memory(128);
-    void* shmem_child_b = create_shared_memory(128);
-
-    child_a = fork();
-    if (child_a == 0)
+    mail_procs[0].pid = fork();
+    if (mail_procs[0].pid == 0)
     {
+        mail_procs[0].shmem = create_shared_memory(128);
         /* Child A code */       
         // Принимаем из род.процесса дескрипторы почтовых доменов
         // При необходимости создаем сокет
         // Шарим по каталогам и читаем письма
         // Отправляем письма
 
-        char* mail_dom = shmem_child_b;
+        char* mail_dom = mail_procs;
     }
     else
     {
-        child_b = fork();
-        if (child_b == 0)
+        mail_procs[1].pid = fork();
+        if (mail_procs[1].pid == 0)
         {
+            mail_procs[1].shmem = create_shared_memory(128);
             /* Child B code */
             // Принимаем из род.процесса дескрипторы почтовых доменов
             // При необходимости создаем сокет
             // Шарим по каталогам и читаем письма
             // Отправляем письма
 
-            char* mail_dom = shmem_child_b;
-            
+            char* mail_dom = shmem_child_b;           
         }
         else
         {
             /* Parent Code */
-            int new_mails_domains_count = 10;
-            for (int i = 0; i < new_mails_domains_count; i++)
-            {
-                memcpy(shmem_child_a, new_mails_domains[i], sizeof(new_mails_domains[i]));
-            }
-
             while (1)
             {
-                printf("\n########### NEW PERIOD ############## \n");
+                //чтение названий писем в соответствии с доменом
+                //printf("\n########### NEW PERIOD ############## \n");
                 char *raw_mail_domains[60];
                 int raw_domains_count = get_out_mail_domains(raw_mail_domains);
                 printf("WHOLE domains count %d\n", raw_domains_count);
@@ -146,7 +141,13 @@ int run_client()
                 // выбираем только новые почтовые домены для получения mx записей и созданя сокета для них
                 char *mail_domains[60];
                 int domains_count = get_domains_diff(raw_domains_count, raw_mail_domains, mail_domains);
+                //send new domains to 
+
+
                 //free(raw_mail_domains);
+
+
+                memcpy(shmem_child_a, new_mails_domains[i], sizeof(new_mails_domains[i]));
 
                 printf("NEW domains count %d\n", domains_count);
                 for (int i = 0; i < domains_count; i++)
@@ -285,7 +286,7 @@ int get_out_mail_domains(char **domains)
     return domains_count;
 }
 
-//получает разницу между уже готовыми доменами и доменами, по которым нужно отправить почту
+// Получает разницу между уже обрабатываемыми процессами доменами и доменами, по которым нужно отправить почту
 int get_domains_diff(int new_domains_count, char **new_mail_domains, char **dif)
 {
     //printf("new domains count %d\n", new_domains_count);
@@ -421,4 +422,24 @@ int process_output_mails()
     }
     closedir(mail_dir);
     return domains_count;
+}
+
+int send_domain_to_process(char **mail_domains)
+{
+
+}
+
+void *create_shared_memory(size_t size)
+{
+    // Our memory buffer will be readable and writable:
+    int protection = PROT_READ | PROT_WRITE;
+
+    // The buffer will be shared (meaning other processes can access it), but
+    // anonymous (meaning third-party processes cannot obtain an address for it),
+    // so only this process and its children will be able to use it:
+    int visibility = MAP_ANONYMOUS | MAP_SHARED;
+
+    // The remaining parameters to `mmap()` are not important for this use case,
+    // but the manpage for `mmap` explains their purpose.
+    return mmap(NULL, size, protection, visibility, 0, 0);
 }

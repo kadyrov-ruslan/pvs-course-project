@@ -9,5 +9,11 @@ struct mail_domain_dscrptr {
     int socket_fd;
 };
 
+struct mail_process_dscrptr {
+    int domains_count;
+    pid_t pid;
+    void* shmem;
+};
+
 
 #endif // _SCHEDULER_H_
