@@ -122,12 +122,18 @@ int run_client()
             while (1)
             {
                 domains_count = get_domains_mails(domains_mails);
-                printf("WHOLE domains count %d\n", domains_count);
+                //printf("WHOLE domains count %d\n", domains_count);
                 for (int i = 0; i < domains_count; i++)
                 {
-                    printf("DOMAIN  %s\n\n", domains_mails[i].domain);
-                    for (int j = 0; j < domains_mails[i].mails_count; j++)
-                        printf("mail  %s\n", domains_mails[i].mails_paths[j]);
+                    printf("SENDING MESSAGE TO QUEUE  %s\n\n", domains_mails[i].domain);
+                    printf("MASTER MQ id : %d \n", mail_procs[1].msg_queue_id);
+                    struct queue_msg new_msg;
+                    new_msg.mtype = 1;
+                    //new_msg.domain_mails = domains_mails[i];
+                    new_msg.mtext =  malloc(50);
+                    strcpy(new_msg.mtext, domains_mails[i].domain);
+
+                    msgsnd(mail_procs[1].msg_queue_id, &new_msg, sizeof(new_msg), 0);
                 }
 
                 sleep(15);
@@ -365,11 +371,25 @@ int process_output_mails()
 // Содержит бизнес логику, обрабатываемую отдельным процессом
 int process_worker_start(int proc_idx)
 {
-    // printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
+    printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0666 | IPC_CREAT);
-    // printf("SON A MSQ queue %d\n\n", cur_proc_mq_id);
-    (void)cur_proc_mq_id;
+    //printf("SON A MSQ queue %d\n\n", cur_proc_mq_id);
+
+    //while (1)
+    {
+        struct queue_msg cur_msg;
+        // msgrcv to receive message
+       msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, 0);
+
+        // display the message
+        printf("MQ id : %d \n", cur_proc_mq_id);
+        if (strlen(cur_msg.mtext) != 0)
+        {
+            printf("Data Received is : %s \n", cur_msg.mtext);
+        }
+    }
+
     return 1;
 }
 
