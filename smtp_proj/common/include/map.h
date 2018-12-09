@@ -2,6 +2,8 @@
 #define _MAP_H_
 
 #include <resolv.h>
+#include <sys/ipc.h> 
+#include <sys/msg.h> 
 
 struct mail_domain_dscrptr {
     char *domain;
@@ -10,9 +12,11 @@ struct mail_domain_dscrptr {
 };
 
 struct mail_process_dscrptr {
-    int domains_count;
     pid_t pid;
-    void* shmem;
+    int msg_queue_id;
+    int domains_count;
+    int mails_count;
+    char *domains[60];
 };
 
 //Describes single domain mails, that have to be sent
