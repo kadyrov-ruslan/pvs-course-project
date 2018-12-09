@@ -26,5 +26,11 @@ struct domain_mails {
     int mails_count;
 };
 
+struct queue_msg { 
+    long mtype;
+    char *mtext;
+    //struct domain_mails domain_mails;
+}; 
+
 
 #endif // _SCHEDULER_H_
