@@ -3,90 +3,92 @@
 struct mail_domain_dscrptr mail_domains_dscrptrs[60];
 struct mail_process_dscrptr mail_procs[2];
 
+struct domain_mails domains_mails[60];
 int ready_domains_count = 0;
 
+
+#define PROC_NUM 2
 //Названия доменов, по которым есть новая почта
-char *new_mails_domains[60];
 
-int run_client_async()
-{
-    fd_set read_fds;
-    fd_set write_fds;
-    fd_set except_fds;
+// int run_client_async()
+// {
+//     fd_set read_fds;
+//     fd_set write_fds;
+//     fd_set except_fds;
 
-    struct timeval tv;
-    int retval;
-    /* Watch stdin (fd 0) to see when it has input. */
+//     struct timeval tv;
+//     int retval;
+//     /* Watch stdin (fd 0) to see when it has input. */
 
-    FD_ZERO(&read_fds);
-    //FD_SET(STDIN_FILENO, read_fds);
-    //FD_SET(server->socket, read_fds);
+//     FD_ZERO(&read_fds);
+//     //FD_SET(STDIN_FILENO, read_fds);
+//     //FD_SET(server->socket, read_fds);
 
-    FD_ZERO(&write_fds);
-    // there is smth to send, set up write_fd for server socket
-    // if (server->send_buffer.current > 0)
-    //     FD_SET(server->socket, write_fds);
+//     FD_ZERO(&write_fds);
+//     // there is smth to send, set up write_fd for server socket
+//     // if (server->send_buffer.current > 0)
+//     //     FD_SET(server->socket, write_fds);
 
-    FD_ZERO(&except_fds);
-    //FD_SET(STDIN_FILENO, except_fds);
-    //FD_SET(server->socket, except_fds);
+//     FD_ZERO(&except_fds);
+//     //FD_SET(STDIN_FILENO, except_fds);
+//     //FD_SET(server->socket, except_fds);
 
-    /* Wait up to five seconds. */
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
+//     /* Wait up to five seconds. */
+//     tv.tv_sec = 5;
+//     tv.tv_usec = 0;
 
-    int maxfd = 50;
-    while (1)
-    {
-        // Select() updates fd_set's, so we need to build fd_set's before each select()call.
-        //build_fd_sets(&server, &read_fds, &write_fds, &except_fds);
+//     int maxfd = 50;
+//     while (1)
+//     {
+//         // Select() updates fd_set's, so we need to build fd_set's before each select()call.
+//         //build_fd_sets(&server, &read_fds, &write_fds, &except_fds);
 
-        int activity = select(maxfd + 1, &read_fds, &write_fds, &except_fds, NULL);
-        switch (activity)
-        {
-        case -1:
-            perror("select()");
-            shutdown_properly(EXIT_FAILURE);
+//         int activity = select(maxfd + 1, &read_fds, &write_fds, &except_fds, NULL);
+//         switch (activity)
+//         {
+//         case -1:
+//             perror("select()");
+//             shutdown_properly(EXIT_FAILURE);
 
-        case 0:
-            // you should never get here
-            printf("select() returns 0.\n");
-            shutdown_properly(EXIT_FAILURE);
+//         case 0:
+//             // you should never get here
+//             printf("select() returns 0.\n");
+//             shutdown_properly(EXIT_FAILURE);
 
-        default:
-            /* All fd_set's should be checked. */
-            // if (FD_ISSET(STDIN_FILENO, &read_fds))
-            // {
-            //     if (handle_read_from_stdin(&server, client_name) != 0)
-            //         shutdown_properly(EXIT_FAILURE);
-            // }
+//         default:
+//             /* All fd_set's should be checked. */
+//             // if (FD_ISSET(STDIN_FILENO, &read_fds))
+//             // {
+//             //     if (handle_read_from_stdin(&server, client_name) != 0)
+//             //         shutdown_properly(EXIT_FAILURE);
+//             // }
 
-            // if (FD_ISSET(STDIN_FILENO, &except_fds))
-            // {
-            //     printf("except_fds for stdin.\n");
-            //     shutdown_properly(EXIT_FAILURE);
-            // }
+//             // if (FD_ISSET(STDIN_FILENO, &except_fds))
+//             // {
+//             //     printf("except_fds for stdin.\n");
+//             //     shutdown_properly(EXIT_FAILURE);
+//             // }
 
-            // if (FD_ISSET(server.socket, &read_fds))
-            // {
-            //     if (receive_from_peer(&server, &handle_received_message) != 0)
-            //         shutdown_properly(EXIT_FAILURE);
-            // }
+//             // if (FD_ISSET(server.socket, &read_fds))
+//             // {
+//             //     if (receive_from_peer(&server, &handle_received_message) != 0)
+//             //         shutdown_properly(EXIT_FAILURE);
+//             // }
 
-            // if (FD_ISSET(server.socket, &write_fds))
-            // {
-            //     if (send_to_peer(&server) != 0)
-            //         shutdown_properly(EXIT_FAILURE);
-            // }
+//             // if (FD_ISSET(server.socket, &write_fds))
+//             // {
+//             //     if (send_to_peer(&server) != 0)
+//             //         shutdown_properly(EXIT_FAILURE);
+//             // }
 
-            // if (FD_ISSET(server.socket, &except_fds))
-            // {
-            //     printf("except_fds for server.\n");
-            //     shutdown_properly(EXIT_FAILURE);
-            // }
-        }
-    }
-}
+//             // if (FD_ISSET(server.socket, &except_fds))
+//             // {
+//             //     printf("except_fds for server.\n");
+//             //     shutdown_properly(EXIT_FAILURE);
+//             // }
+//         }
+//     }
+// }
 
 int run_client()
 {
@@ -101,110 +103,191 @@ int run_client()
     //todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
     //autofsm для smtp протокола
 
-    mail_procs[0].pid = fork();
-    if (mail_procs[0].pid == 0)
+    /* Start children. */
+    for (int i = 0; i < PROC_NUM; i++)
     {
-        mail_procs[0].shmem = create_shared_memory(128);
-        /* Child A code */       
-        // Принимаем из род.процесса дескрипторы почтовых доменов
-        // При необходимости создаем сокет
-        // Шарим по каталогам и читаем письма
-        // Отправляем письма
-
-        char* mail_dom = mail_procs;
-    }
-    else
-    {
-        mail_procs[1].pid = fork();
-        if (mail_procs[1].pid == 0)
+        printf("START proc %d\n\n", i);
+        mail_procs[i].pid = fork();            
+        if (mail_procs[i].pid == 0)
         {
-            mail_procs[1].shmem = create_shared_memory(128);
-            /* Child B code */
-            // Принимаем из род.процесса дескрипторы почтовых доменов
-            // При необходимости создаем сокет
-            // Шарим по каталогам и читаем письма
-            // Отправляем письма
-
-            char* mail_dom = shmem_child_b;           
-        }
-        else
-        {
-            /* Parent Code */
             while (1)
             {
-                //чтение названий писем в соответствии с доменом
-                //printf("\n########### NEW PERIOD ############## \n");
-                char *raw_mail_domains[60];
-                int raw_domains_count = get_out_mail_domains(raw_mail_domains);
-                printf("WHOLE domains count %d\n", raw_domains_count);
-
-                // выбираем только новые почтовые домены для получения mx записей и созданя сокета для них
-                char *mail_domains[60];
-                int domains_count = get_domains_diff(raw_domains_count, raw_mail_domains, mail_domains);
-                //send new domains to 
-
-
-                //free(raw_mail_domains);
-
-
-                memcpy(shmem_child_a, new_mails_domains[i], sizeof(new_mails_domains[i]));
-
-                printf("NEW domains count %d\n", domains_count);
-                for (int i = 0; i < domains_count; i++)
-                {
-                    printf(" ------------------------------- \n");
-                    printf("Mail domain %s\n", mail_domains[i]);
-                    char *res = get_domain_mx_server_name(mail_domains[i]);
-                    struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
-                    cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
-                    cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
-
-                    printf("server IP:%s\n", inet_ntoa(cur_domain_srv.sin_addr));
-                    mail_domains_dscrptrs[ready_domains_count].domain = mail_domains[i];
-                    mail_domains_dscrptrs[ready_domains_count].domain_mail_server = cur_domain_srv;
-
-                    int cur_domain_socket_fd = 0;
-                    if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-                    {
-                        printf("\n Error : Could not create socket \n");
-                        return 1;
-                    }
-
-                    if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
-                    {
-                        printf("\n Error : Connect Failed \n");
-                        return 1;
-                    }
-                    else
-                    {
-                        printf("\n SUCCESS : Connected \n");
-                        mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
-
-                        read_fd_line(cur_domain_socket_fd, buf, MAX_BUF_LEN);
-                        check_server_response_code(buf);
-                        printf("%s\n", buf);
-                        get_suffix(buf);
-                    }
-                    ready_domains_count++;
-                }
-                //free(mail_domains);
-
-                printf(" -------- SOCKETS --------------- \n");
-                for (int i = 0; i < ready_domains_count; i++)
-                {
-                    printf("Mail domain: %s\n", mail_domains_dscrptrs[i].domain);
-                    printf("Mail domain socket fd: %d\n\n", mail_domains_dscrptrs[i].socket_fd);
-                }
-                printf(" -------------------------------- \n");
-
-                if (domains_count > 0)
-                    process_output_mails();
-                sleep(120);
+            //printf("Message from child proc %d\n\n", getpid());
             }
+
+            //exit(0);
         }
     }
 
+     /* Parent Code */
+    while (1)
+    {
+        int domains_to_process_count = get_domains_mails(domains_mails);
+        printf("WHOLE domains count %d\n", domains_to_process_count);
+        for (int i = 0; i < domains_to_process_count; i++)
+        {
+            printf("DOMAIN  %s\n\n", domains_mails[i].domain);
+            for (int j = 0; j < domains_mails[i].mails_count; j++)
+                printf("mail  %s\n", domains_mails[i].mails_paths[j]);
+        }
+
+        sleep(5);
+    }
+
+    // if (mail_procs[0].pid == 0)
+    // {
+    //     while (1)
+    //     {
+    //         printf("Message from 1st child proc \n\n");
+    //     }
+    //     //mail_procs[0].shmem = create_shared_memory(128);
+    //     /* Child A code */
+    //     // Принимаем из lрод.процесса дескрипторы почтовых доменов
+    //     // При необходимости создаем сокет
+    //     // Шарим по каталогам и читаем письма
+    //     // Отправляем письма
+
+    //     //char* mail_dom = mail_procs;
+    // }
+    // else
+    // {
+    //     mail_procs[1].pid = fork();
+    //     if (mail_procs[1].pid == 0)
+    //     {
+    //         while (1)
+    //         {
+    //             printf("Message from 2nd child proc \n\n");
+    //         }
+    //         //mail_procs[1].shmem = create_shared_memory(128);
+    //         /* Child B code */
+    //         // Принимаем из род.процесса дескрипторы почтовых доменов
+    //         // При необходимости создаем сокет
+    //         // Шарим по каталогам и читаем письма
+    //         // Отправляем письма
+
+    //         //char* mail_dom = shmem_child_b;
+    //     }
+    //     else
+    //     {
+    //         /* Parent Code */
+    //         while (1)
+    //         {
+    //             int domains_to_process_count = get_domains_mails(domains_mails);
+    //             printf("WHOLE domains count %d\n", domains_to_process_count);
+    //             for (int i = 0; i < domains_to_process_count; i++)
+    //             {
+    //                 printf("DOMAIN  %s\n\n", domains_mails[i].domain);
+    //                 for (int j = 0; j < domains_mails[i].mails_count; j++)
+    //                     printf("mail  %s\n", domains_mails[i].mails_paths[j]);
+    //             }
+
+    //             sleep(15);
+    //         }
+    //     }
+    // }
+
     return 1;
+}
+
+// Обновляет массив с описаниями зарегистрированных почтовых доменов 
+// Каждый элемент содержит название домена, число новых писем для него и пути к письмам
+int get_domains_mails(struct domain_mails *domains_mails)
+{
+    int domains_count = 0;
+
+    //run through users direrctories
+    struct dirent *user_dir;
+    DIR *mail_dir = opendir(conf.mail_dir);
+    if (mail_dir == NULL)
+        printf("Could not open MAIL directory");
+
+    while ((user_dir = readdir(mail_dir)) != NULL)
+    {
+        char *user_dir_name = user_dir->d_name;
+        if (strcmp(user_dir_name, ".") != 0 && strcmp(user_dir_name, "..") != 0)
+        {
+            char *user_dir_full_path = malloc(strlen(conf.mail_dir) + 2 + strlen(user_dir_name));
+            strcpy(user_dir_full_path, conf.mail_dir);
+            strcat(user_dir_full_path, user_dir_name);
+            strcat(user_dir_full_path, "/");
+
+            char *user_dir_new = malloc(strlen(user_dir_full_path) + 4);
+            strcpy(user_dir_new, user_dir_full_path);
+            strcat(user_dir_new, "new/");
+
+            DIR *new_dir = opendir(user_dir_new);
+            if (new_dir == NULL)
+                printf("Could not open NEW directory");
+
+            int mails_count = count_dir_entries(user_dir_new);
+            if (mails_count > 0)
+            {
+                printf("directory is NOT EMPTY\n");
+                struct dirent *new_entry;
+                while ((new_entry = readdir(new_dir)) != NULL)
+                {
+                    if (strcmp(new_entry->d_name, ".") != 0 && strcmp(new_entry->d_name, "..") != 0)
+                    {
+                        char *email_full_name = malloc(strlen(user_dir_new) + strlen(new_entry->d_name));
+                        strcpy(email_full_name, user_dir_new);
+                        strcat(email_full_name, new_entry->d_name);
+
+                        char **tokens;
+                        tokens = str_split(new_entry->d_name, '.');
+
+                        char *first_part = tokens[2];
+                        char *second_part = tokens[3];
+
+                        char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
+                        strcpy(tmp_cur_mail_domain, first_part);
+                        strcat(tmp_cur_mail_domain, ".");
+                        strcat(tmp_cur_mail_domain, second_part);
+
+                        tokens = str_split(tmp_cur_mail_domain, ',');
+                        //Проверяем, есть ли текущий домен массиве доменов
+                        int found_domain_num = -1;
+                        for (int i = 0; i < domains_count; i++)
+                        {
+                            if (strcmp(tokens[0], domains_mails[i].domain) == 0)
+                                found_domain_num = i;
+                        }
+
+                        //Домен не найден - добавляем в массив
+                        if (found_domain_num < 0)
+                        {
+                            domains_mails[domains_count].domain = malloc(strlen(tokens[0]));
+                            strcpy(domains_mails[domains_count].domain, tokens[0]);
+
+                            domains_mails[found_domain_num].mails_count = 0;
+                            domains_mails[domains_count].mails_paths[0] = malloc(strlen(email_full_name));
+                            strcpy(domains_mails[domains_count].mails_paths[0], email_full_name);
+
+                            printf("NEW domain %s\n", domains_mails[domains_count].domain);
+
+                            domains_mails[domains_count].mails_count++;
+                            domains_count++;
+                        }
+                        //Домен найден - обновляем его состояние
+                        else
+                        {
+                            int last_mail_num = domains_mails[found_domain_num].mails_count;
+                            domains_mails[found_domain_num].mails_paths[last_mail_num] = malloc(strlen(email_full_name));
+                            strcpy(domains_mails[found_domain_num].mails_paths[last_mail_num], email_full_name);
+                            
+                            domains_mails[found_domain_num].mails_count++;
+                        }
+                        free(tokens);
+                    }
+                }
+            }
+            else
+                printf("directory is EMPTY\n");
+
+            closedir(new_dir);
+        }
+    }
+    closedir(mail_dir);
+    return domains_count;
 }
 
 // Получает массив названий почтовых доменов, которым нужно отправить письма
@@ -424,22 +507,21 @@ int process_output_mails()
     return domains_count;
 }
 
-int send_domain_to_process(char **mail_domains)
-{
+// int send_domain_to_process(char **mail_domains)
+// {
+// }
 
-}
+// void *create_shared_memory(size_t size)
+// {
+//     // Our memory buffer will be readable and writable:
+//     int protection = PROT_READ | PROT_WRITE;
 
-void *create_shared_memory(size_t size)
-{
-    // Our memory buffer will be readable and writable:
-    int protection = PROT_READ | PROT_WRITE;
+//     // The buffer will be shared (meaning other processes can access it), but
+//     // anonymous (meaning third-party processes cannot obtain an address for it),
+//     // so only this process and its children will be able to use it:
+//     int visibility = MAP_ANONYMOUS | MAP_SHARED;
 
-    // The buffer will be shared (meaning other processes can access it), but
-    // anonymous (meaning third-party processes cannot obtain an address for it),
-    // so only this process and its children will be able to use it:
-    int visibility = MAP_ANONYMOUS | MAP_SHARED;
-
-    // The remaining parameters to `mmap()` are not important for this use case,
-    // but the manpage for `mmap` explains their purpose.
-    return mmap(NULL, size, protection, visibility, 0, 0);
-}
+//     // The remaining parameters to `mmap()` are not important for this use case,
+//     // but the manpage for `mmap` explains their purpose.
+//     return mmap(NULL, size, protection, visibility, 0, 0);
+// }

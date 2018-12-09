@@ -16,6 +16,8 @@
 
 int run_client();
 int get_out_mail_domains(char **domains);
+// int run_client_async();
+int get_domains_mails(struct domain_mails *domains_mails);
 int get_domains_diff(int new_domains_count, char **new_mail_domains, char **dif);
 int process_output_mails();
 

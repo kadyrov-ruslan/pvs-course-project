@@ -15,5 +15,12 @@ struct mail_process_dscrptr {
     void* shmem;
 };
 
+//Describes single domain mails, that have to be sent
+struct domain_mails {
+    char *domain;
+    char *mails_paths[100];
+    int mails_count;
+};
+
 
 #endif // _SCHEDULER_H_
