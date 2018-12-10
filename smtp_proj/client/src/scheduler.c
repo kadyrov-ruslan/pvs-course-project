@@ -3,16 +3,15 @@
 
 #define PROC_NUM 2
 
- //2. в каждом процессе свой while с select
-    //3. чекаем каталоги и спихиваем по round robin в процессы
-    //4. каждый процесс обновляет свои массивы дескрипторов и работает
+//2. в каждом процессе свой while с select
+//3. чекаем каталоги и спихиваем по round robin в процессы
+//4. каждый процесс обновляет свои массивы дескрипторов и работает
 
-    //в родительском процессе необходимо иметь дескрипторы дочерних процессов,
-    //которые будут содержать число почтовых доменов и переданных писем в каждый дочерний процесс
+//в родительском процессе необходимо иметь дескрипторы дочерних процессов,
+//которые будут содержать число почтовых доменов и переданных писем в каждый дочерний процесс
 
-    //todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
-    //autofsm для smtp протокола
-
+//todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
+//autofsm для smtp протокола
 
 struct mail_domain_dscrptr mail_domains_dscrptrs[60];
 struct domain_mails domains_mails[60];
@@ -133,10 +132,6 @@ int master_process_worker_start()
         domains_count = get_domains_mails(domains_mails);
         for (int i = 0; i < domains_count; i++)
         {
-            //printf("MASTER MQ id : %d \n", mail_procs[1].msg_queue_id);
-            //fflush(stdout);
-
-            printf("MASTER MQ id : %d \n", domains_mails[i].mails_count);
             for (int j = 0; j < domains_mails[i].mails_count; j++)
             {
                 struct queue_msg new_msg;
@@ -158,27 +153,21 @@ int master_process_worker_start()
 // Содержит бизнес логику, обрабатываемую отдельным процессом
 int child_process_worker_start(int proc_idx)
 {
-    //printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0666 | IPC_CREAT);
-    //printf("SON MSQ queue %d\n\n", cur_proc_mq_id);
-    //fflush(stdout);
+
     while (1)
     {
         struct queue_msg cur_msg;
         msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, 0);
-        //printf("MQ id : %d \n", cur_proc_mq_id);
-        fflush(stdout);
         if (strlen(cur_msg.mtext) != 0)
         {
-            printf("Data Received is : %s \n", cur_msg.mtext);
-            fflush(stdout);
+            process_email(cur_msg.mtext);
         }
     }
 
     return 1;
 }
-
 
 // Обновляет массив с описаниями зарегистрированных почтовых доменов
 // Каждый элемент содержит название домена, число новых писем для него и пути к письмам
@@ -285,6 +274,71 @@ int get_domains_mails(struct domain_mails *domains_mails)
     }
     closedir(mail_dir);
     return domains_count;
+}
+
+int process_email(char *email_path)
+{
+    printf("EMAIL PATH %s\n", email_path);
+    fflush(stdout);
+
+    char *saved_email_path = malloc(strlen(email_path));
+    strcpy(email_path, saved_email_path);
+
+    char **tokens;
+    tokens = str_split(email_path, '.');
+
+    char *first_part = tokens[2];
+    char *second_part = tokens[3];
+
+    char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
+    strcpy(tmp_cur_mail_domain, first_part);
+    strcat(tmp_cur_mail_domain, ".");
+    strcat(tmp_cur_mail_domain, second_part);
+    free(tokens);
+
+    tokens = str_split(tmp_cur_mail_domain, ',');
+    char *cur_email_domain = tokens[0];
+    free(tokens);
+
+    int found_domain_num = -1;
+    for (int i = 0; i < ready_domains_count; i++)
+    {
+        if (strcmp(cur_email_domain, mail_domains_dscrptrs[i].domain) == 0)
+            found_domain_num = i;
+    }
+
+    //Домен не найден - добавляем в массив
+    if (found_domain_num < 0)
+    {
+        mail_domains_dscrptrs[ready_domains_count].domain = malloc(strlen(cur_email_domain));
+        strcpy(mail_domains_dscrptrs[ready_domains_count].domain, cur_email_domain);
+        ready_domains_count++;
+    }
+
+    for (int i = 0; i < ready_domains_count; i++)
+    {
+        if (strcmp(mail_domains_dscrptrs[i].domain, cur_email_domain) == 0)
+        {
+            printf("EMAIL DOMAIN %s\n", cur_email_domain);
+            fflush(stdout);
+            //printf("SENDING DATA . . . \n");
+            //send_msg_to_server(mail_domains_dscrptrs[i].socket_fd, email_msg);
+            char *email_new_name = str_replace(saved_email_path, "new", "cur");
+            printf("ENTRY NEW NAME %s\n", email_new_name);
+            fflush(stdout);
+
+            // int ret;
+            // ret = rename(email_full_names[j], email_new_name);
+            // if (ret == 0)
+            //     printf("File renamed successfully\n");
+            // else
+            //     printf("Error: unable to rename the file\n");
+
+            break;
+        }
+    }
+
+    return 1;
 }
 
 int process_output_mails()
@@ -407,3 +461,18 @@ void waitFor(unsigned int secs)
     while (time(0) < retTime)
         ; // Loop until it arrives.
 }
+
+//printf("MQ id : %d \n", cur_proc_mq_id);
+//fflush(stdout);
+
+//printf("SON MSQ queue %d\n\n", cur_proc_mq_id);
+//fflush(stdout);
+
+//printf("MASTER MQ id : %d \n", mail_procs[1].msg_queue_id);
+//fflush(stdout);
+
+//printf("MASTER MQ id : %d \n", domains_mails[i].mails_count);
+//printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
+
+//     printf("Data Received is : %s \n", cur_msg.mtext);
+// fflush(stdout);
