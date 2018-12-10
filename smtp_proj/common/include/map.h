@@ -26,11 +26,11 @@ struct domain_mails {
     int mails_count;
 };
 
-struct queue_msg { 
+typedef struct queue_msg { 
     long mtype;
-    char *mtext;
+    char mtext[150];
     //struct domain_mails domain_mails;
-}; 
+} queue_msg; 
 
 
 #endif // _SCHEDULER_H_
