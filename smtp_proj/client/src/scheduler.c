@@ -1,6 +1,18 @@
 #include "../include/scheduler.h"
+#include <time.h>
 
 #define PROC_NUM 2
+
+ //2. в каждом процессе свой while с select
+    //3. чекаем каталоги и спихиваем по round robin в процессы
+    //4. каждый процесс обновляет свои массивы дескрипторов и работает
+
+    //в родительском процессе необходимо иметь дескрипторы дочерних процессов,
+    //которые будут содержать число почтовых доменов и переданных писем в каждый дочерний процесс
+
+    //todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
+    //autofsm для smtp протокола
+
 
 struct mail_domain_dscrptr mail_domains_dscrptrs[60];
 struct domain_mails domains_mails[60];
@@ -92,63 +104,86 @@ struct mail_process_dscrptr mail_procs[PROC_NUM];
 
 int run_client()
 {
-    //1. создаем два дочерних процесса
-    //2. в каждом процессе свой while с select
-    //3. чекаем каталоги и спихиваем по round robin в процессы
-    //4. каждый процесс обновляет свои массивы дескрипторов и работает
-
-    //в родительском процессе необходимо иметь дескрипторы дочерних процессов,
-    //которые будут содержать число почтовых доменов и переданных писем в каждый дочерний процесс
-
-    //todo реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
-    //autofsm для smtp протокола
-
     mail_procs[0].pid = fork();
     if (mail_procs[0].pid == 0)
-        process_worker_start(1);
+        child_process_worker_start(1);
     else
     {
         mail_procs[1].pid = fork();
         if (mail_procs[1].pid == 0)
-            process_worker_start(2);
+            child_process_worker_start(2);
         else
+            master_process_worker_start();
+    }
+
+    return 1;
+}
+
+// Содержит бизнес логику, обрабатываемую главным процессом
+int master_process_worker_start()
+{
+    key_t key = ftok("/tmp", 1);
+    mail_procs[0].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
+
+    key = ftok("/tmp", 2);
+    mail_procs[1].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
+
+    while (1)
+    {
+        domains_count = get_domains_mails(domains_mails);
+        for (int i = 0; i < domains_count; i++)
         {
-            /* Parent Code */
-            key_t key = ftok("/tmp", 1);
-            mail_procs[0].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
+            //printf("MASTER MQ id : %d \n", mail_procs[1].msg_queue_id);
+            //fflush(stdout);
 
-            key = ftok("/tmp", 2);
-            mail_procs[1].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
-            while (1)
+            printf("MASTER MQ id : %d \n", domains_mails[i].mails_count);
+            for (int j = 0; j < domains_mails[i].mails_count; j++)
             {
-                domains_count = get_domains_mails(domains_mails);
-                //printf("WHOLE domains count %d\n", domains_count);
-                for (int i = 0; i < domains_count; i++)
-                {
-                    printf("SENDING MESSAGE TO QUEUE  %s\n\n", domains_mails[i].domain);
-                    printf("MASTER MQ id : %d \n", mail_procs[1].msg_queue_id);
-                    struct queue_msg new_msg;
-                    new_msg.mtype = 1;
-                    //new_msg.domain_mails = domains_mails[i];
-                    new_msg.mtext =  malloc(50);
-                    strcpy(new_msg.mtext, domains_mails[i].domain);
-
-                    msgsnd(mail_procs[1].msg_queue_id, &new_msg, sizeof(new_msg), 0);
-                }
-
-                sleep(15);
+                struct queue_msg new_msg;
+                new_msg.mtype = 1;
+                strcpy(new_msg.mtext, domains_mails[i].mails_paths[j]);
+                msgsnd(mail_procs[1].msg_queue_id, &new_msg, sizeof(new_msg), 0);
             }
+
+            domains_mails[i].mails_count = 0;
+            memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
+        }
+
+        waitFor(25);
+    }
+
+    return 1;
+}
+
+// Содержит бизнес логику, обрабатываемую отдельным процессом
+int child_process_worker_start(int proc_idx)
+{
+    //printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
+    key_t key = ftok("/tmp", proc_idx);
+    int cur_proc_mq_id = msgget(key, 0666 | IPC_CREAT);
+    //printf("SON MSQ queue %d\n\n", cur_proc_mq_id);
+    //fflush(stdout);
+    while (1)
+    {
+        struct queue_msg cur_msg;
+        msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, 0);
+        //printf("MQ id : %d \n", cur_proc_mq_id);
+        fflush(stdout);
+        if (strlen(cur_msg.mtext) != 0)
+        {
+            printf("Data Received is : %s \n", cur_msg.mtext);
+            fflush(stdout);
         }
     }
 
     return 1;
 }
 
+
 // Обновляет массив с описаниями зарегистрированных почтовых доменов
 // Каждый элемент содержит название домена, число новых писем для него и пути к письмам
 int get_domains_mails(struct domain_mails *domains_mails)
 {
-    //run through users direrctories
     struct dirent *user_dir;
     DIR *mail_dir = opendir(conf.mail_dir);
     if (mail_dir == NULL)
@@ -175,7 +210,7 @@ int get_domains_mails(struct domain_mails *domains_mails)
             int mails_count = count_dir_entries(user_dir_new);
             if (mails_count > 0)
             {
-                printf("directory is NOT EMPTY\n");
+                //printf("directory is NOT EMPTY\n");
                 struct dirent *new_entry;
                 while ((new_entry = readdir(new_dir)) != NULL)
                 {
@@ -215,8 +250,6 @@ int get_domains_mails(struct domain_mails *domains_mails)
                             domains_mails[domains_count].mails_paths[0] = malloc(strlen(email_full_name));
                             strcpy(domains_mails[domains_count].mails_paths[0], email_full_name);
 
-                            printf("NEW domain %s\n", domains_mails[domains_count].domain);
-
                             domains_mails[domains_count].mails_count++;
                             domains_count++;
                         }
@@ -244,8 +277,8 @@ int get_domains_mails(struct domain_mails *domains_mails)
                     }
                 }
             }
-            else
-                printf("directory is EMPTY\n");
+            //else
+            //printf("directory is EMPTY\n");
 
             closedir(new_dir);
         }
@@ -368,31 +401,9 @@ int process_output_mails()
     return domains_count;
 }
 
-// Содержит бизнес логику, обрабатываемую отдельным процессом
-int process_worker_start(int proc_idx)
+void waitFor(unsigned int secs)
 {
-    printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
-    key_t key = ftok("/tmp", proc_idx);
-    int cur_proc_mq_id = msgget(key, 0666 | IPC_CREAT);
-    //printf("SON A MSQ queue %d\n\n", cur_proc_mq_id);
-
-    //while (1)
-    {
-        struct queue_msg cur_msg;
-        // msgrcv to receive message
-       msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, 0);
-
-        // display the message
-        printf("MQ id : %d \n", cur_proc_mq_id);
-        if (strlen(cur_msg.mtext) != 0)
-        {
-            printf("Data Received is : %s \n", cur_msg.mtext);
-        }
-    }
-
-    return 1;
+    unsigned int retTime = time(0) + secs; // Get finishing time.
+    while (time(0) < retTime)
+        ; // Loop until it arrives.
 }
-
-// int send_domain_to_process(char **mail_domains)
-// {
-// }
