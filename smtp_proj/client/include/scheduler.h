@@ -24,6 +24,9 @@ int get_domains_mails(struct domain_mails *domains_mails);
 
 int master_process_worker_start();
 int child_process_worker_start(int proc_idx);
+
+int process_email(char *email_path);
+
 int process_output_mails();
 
 #endif // _SCHEDULER_H_
