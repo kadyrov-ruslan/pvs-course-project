@@ -170,7 +170,9 @@ static int read_config(char *argv[])
     }
 
     printf("config is correct. Ready to start client\n");
+        fflush(stdout);
     log_i("config `%s' is correct. Ready to start client", argv[1]);
+    
     return 0;
 }
 
