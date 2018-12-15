@@ -17,14 +17,13 @@
 #define MAX_FD_CNT 1024
 
 int run_client();
-int master_process_worker_start();
+int master_process_worker_start(struct mail_process_dscrptr *mail_procs);
 int child_process_worker_start(int proc_idx);
 
-int get_domains_mails(struct domain_mails *domains_mails);
-int process_email(char *email_path);
+int get_domains_mails(struct domain_mails *domains_mails, int domains_count);
+int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs);
 
-int process_output_mails();
-void waitFor (unsigned int secs);
+void wait_for (unsigned int secs);
 void shutdown_properly(int code);
 
 #endif // _SCHEDULER_H_
