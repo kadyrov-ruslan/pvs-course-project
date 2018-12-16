@@ -81,6 +81,8 @@ int child_process_worker_start(int proc_idx)
     FD_ZERO(&write_fds);
     FD_ZERO(&except_fds);
 
+    int maxfd = 1;
+
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0644);
     struct queue_msg cur_msg;
@@ -90,9 +92,9 @@ int child_process_worker_start(int proc_idx)
         {
             if (strlen(cur_msg.mtext) != 0)
             {
-                register_new_email(cur_msg.mtext, mail_domains_dscrptrs);
-                // int maxfd = 100;
-                // int activity = select(maxfd + 1, &read_fds, &write_fds, &except_fds, NULL);
+                maxfd = register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds);
+                printf("maxfd .%d\n", maxfd);
+                //int activity = select(maxfd+1, &read_fds, &write_fds, &except_fds, NULL);
                 // switch (activity)
                 // {
                 // case -1:
@@ -105,11 +107,12 @@ int child_process_worker_start(int proc_idx)
 
                 // default:
                 //     /* All fd_set's should be checked. */
-                //     // if (FD_ISSET(STDIN_FILENO, &read_fds))
-                //     // {
-                //     //     if (handle_read_from_stdin(&server, client_name) != 0)
-                //     //         shutdown_properly(EXIT_FAILURE);
-                //     // }
+                //     if (FD_ISSET(STDIN_FILENO, &read_fds))
+                //     {
+                //         printf("FD_ISSET(STDIN_FILENO, &read_fds).\n");
+                //         // if (handle_read_from_stdin(&server, client_name) != 0)
+                //         //     shutdown_properly(EXIT_FAILURE);
+                //     }
 
                 //     if (FD_ISSET(STDIN_FILENO, &except_fds))
                 //     {
@@ -117,24 +120,26 @@ int child_process_worker_start(int proc_idx)
                 //         shutdown_properly(EXIT_FAILURE);
                 //     }
 
-                //     // if (FD_ISSET(server.socket, &read_fds))
-                //     // {
-                //     //     if (receive_from_peer(&server, &handle_received_message) != 0)
-                //     //         shutdown_properly(EXIT_FAILURE);
-                //     // }
+                //     if (FD_ISSET(email_socket_fd, &read_fds))
+                //     {
+                //         printf("FD_ISSET(maxfd, &read_fds).\n");
+                //         // if (receive_from_peer(&server, &handle_received_message) != 0)
+                //         //     shutdown_properly(EXIT_FAILURE);
+                //     }
 
-                //     // if (FD_ISSET(server.socket, &write_fds))
-                //     // {
-                //     //     if (send_to_peer(&server) != 0)
-                //     //         shutdown_properly(EXIT_FAILURE);
-                //     // }
+                //     if (FD_ISSET(email_socket_fd, &write_fds))
+                //     {
+                //         printf("FD_ISSET(maxfd, &write_fds).\n");
+                //         // if (send_to_peer(&server) != 0)
+                //         //     shutdown_properly(EXIT_FAILURE);
+                //     }
 
-                //     // if (FD_ISSET(server.socket, &except_fds))
-                //     // {
-                //     //     printf("except_fds for server.\n");
-                //     //     shutdown_properly(EXIT_FAILURE);
-                //     // }
-                // }
+                //     if (FD_ISSET(email_socket_fd, &except_fds))
+                //     {
+                //         printf("except_fds for server.\n");
+                //         shutdown_properly(EXIT_FAILURE);
+                //     }
+                //}
             }
         }
     }
@@ -250,7 +255,8 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
 }
 
 // Регистрирует новое письмо в массиве дескрипторов mail_domains_dscrptrs для последующей обработки
-int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs)
+int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs,
+                       fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
     printf("EMAIL %s\n", email_path);
     char *saved_email_path = malloc(strlen(email_path));
@@ -296,56 +302,49 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         int cur_domain_socket_fd = 0;
         if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         {
-            //printf("\n Error : Could not create socket \n");
+            printf("\n Error : Could not create socket \n");
             return -1;
         }
 
         if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
         {
-            //printf("\n Error : Connect Failed \n");
+            printf("\n Error : Connect Failed \n");
             return -1;
         }
         else
         {
-            printf("\n SUCCESS : Connected \n");
+            fcntl(cur_domain_socket_fd, F_SETFL, O_NONBLOCK);
+            printf("SUCCESS : Connected \n");
+            printf("Socket fd :  %d\n", cur_domain_socket_fd);
+            mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
 
-            //fflush(stdout);
-            //mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
+            FD_SET(STDIN_FILENO, read_fds);
+            FD_SET(cur_domain_socket_fd, read_fds);
+
+            // there is smth to send, set up write_fd for server socket
+            //if (server->send_buffer.current > 0)
+            FD_SET(cur_domain_socket_fd, write_fds);
+            FD_SET(STDIN_FILENO, except_fds);
+            FD_SET(cur_domain_socket_fd, except_fds);
         }
 
+        int max_mail_num = mail_domains_dscrptrs[ready_domains_count].mails_count;
+        mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
+        printf("email fd %d\n", mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num]);
         ready_domains_count++;
+        return cur_domain_socket_fd;
     }
     else
     {
         printf("EMAIL EXISTs %s\n", cur_email_domain);
+        int max_mail_num = mail_domains_dscrptrs[found_domain_num].mails_count;
+        mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
+        printf("email fd %d\n", mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num]);
+        return mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num];
     }
-
-    // for (int i = 0; i < ready_domains_count; i++)
-    // {
-    //     if (strcmp(mail_domains_dscrptrs[i].domain, cur_email_domain) == 0)
-    //     {
-    //         printf("EMAIL DOMAIN %s\n", cur_email_domain);
-    //         fflush(stdout);
-    //         //printf("SENDING DATA . . . \n");
-    //         //send_msg_to_server(mail_domains_dscrptrs[i].socket_fd, email_msg);
-    //         char *email_new_name = str_replace(saved_email_path, "new", "cur");
-    //         printf("ENTRY NEW NAME %s\n", email_new_name);
-    //         fflush(stdout);
-
-    //         // int ret;
-    //         // ret = rename(email_full_names[j], email_new_name);
-    //         // if (ret == 0)
-    //         //     printf("File renamed successfully\n");
-    //         // else
-    //         //     printf("Error: unable to rename the file\n");
-
-    //         break;
-    //     }
-    // }
-
-    return 1;
 }
 
+// Ожидает заданное число секунд
 void wait_for(unsigned int secs)
 {
     // Get finishing time.
@@ -360,6 +359,29 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
+
+// for (int i = 0; i < ready_domains_count; i++)
+// {
+//     if (strcmp(mail_domains_dscrptrs[i].domain, cur_email_domain) == 0)
+//     {
+//         printf("EMAIL DOMAIN %s\n", cur_email_domain);
+//         fflush(stdout);
+//         //printf("SENDING DATA . . . \n");
+//         //send_msg_to_server(mail_domains_dscrptrs[i].socket_fd, email_msg);
+//         char *email_new_name = str_replace(saved_email_path, "new", "cur");
+//         printf("ENTRY NEW NAME %s\n", email_new_name);
+//         fflush(stdout);
+
+//         // int ret;
+//         // ret = rename(email_full_names[j], email_new_name);
+//         // if (ret == 0)
+//         //     printf("File renamed successfully\n");
+//         // else
+//         //     printf("Error: unable to rename the file\n");
+
+//         break;
+//     }
+// }
 
 //printf("MQ id : %d \n", cur_proc_mq_id);
 //fflush(stdout);
