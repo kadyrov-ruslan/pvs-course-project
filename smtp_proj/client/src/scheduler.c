@@ -94,6 +94,9 @@ int child_process_worker_start(int proc_idx)
             {
                 maxfd = register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds);
                 printf("maxfd .%d\n", maxfd);
+                //в домене должно быть поле с текущим письмом, которое отправляется
+                //в рамках select() Работаем только с сокетами, файлы можно не считывать в файловый дескриптор
+
                 //int activity = select(maxfd+1, &read_fds, &write_fds, &except_fds, NULL);
                 // switch (activity)
                 // {
