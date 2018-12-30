@@ -10,6 +10,7 @@ struct mail_domain_dscrptr {
     struct sockaddr_in domain_mail_server;
     int socket_fd;
     int mails_count;
+    
     int mails_fds[100];
 };
 

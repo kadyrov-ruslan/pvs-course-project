@@ -2,6 +2,8 @@
 #define _LOG_H_
 
 #include <unistd.h>
+#include <sys/ipc.h> 
+#include <sys/msg.h> 
 
 typedef enum
 {
