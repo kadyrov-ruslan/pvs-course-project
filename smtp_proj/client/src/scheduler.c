@@ -10,7 +10,7 @@ int ready_domains_count = 0; // юзается в чайлд процессах
 
 int run_client()
 {
-    // Дескрипторы дочерних процессов, содержат число почтовых доменов и переданных писем в каждый дочерний процесс
+    // Дескрипторы дочерних процессов - содержат число почтовых доменов и переданных писем в каждый дочерний процесс
     struct mail_process_dscrptr mail_procs[PROC_NUM];
     mail_procs[0].pid = fork();
     if (mail_procs[0].pid == 0)
@@ -30,6 +30,7 @@ int run_client()
 // Содержит бизнес логику, обрабатываемую главным процессом
 int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 {
+    log_i("%s", "Master proc worker started");
     struct domain_mails domains_mails[MAX_MAIL_DOMAIN_NUM * 2];
     int domains_count = 0;
 
@@ -38,7 +39,6 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 
     key = ftok("/tmp", 7);
     mail_procs[1].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
-
     while (1)
     {
         domains_count = get_domains_mails(domains_mails, domains_count);

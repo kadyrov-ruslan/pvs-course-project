@@ -1,7 +1,10 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include <unistd.h>
+#include "../../common/include/map.h"
+#include "../../common/include/dir_utils.h"
+#include "../../common/include/string_utils.h"
+#include "../include/mail_domain.h"
 #include <sys/ipc.h> 
 #include <sys/msg.h> 
 
@@ -13,11 +16,6 @@ typedef enum
 	DEBUG,
 } log_level;
 
-typedef enum
-{
-	LS_CONTINUE,
-	LS_STOP
-} logger_signal;
 
 int start_logger(const char *log_filename_base);
 
