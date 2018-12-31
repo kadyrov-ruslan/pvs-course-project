@@ -31,7 +31,7 @@ struct domain_mails {
 
 typedef struct queue_msg { 
     long mtype;
-    char mtext[150];
+    char mtext[500];
     //struct domain_mails domain_mails;
 } queue_msg; 
 

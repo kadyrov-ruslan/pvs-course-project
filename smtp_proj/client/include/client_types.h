@@ -1,7 +1,7 @@
 #ifndef _CLIENT_TYPES_H_
 #define _CLIENT_TYPES_H_
 
-#include "../../common/include/log.h"
+#include "log.h"
 #include "mail_domain.h"
 
 #include <errno.h>

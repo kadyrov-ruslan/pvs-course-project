@@ -15,14 +15,12 @@ static config_t client_conf;
 static char hostname_sys[NAME_MAX];
 struct client_conf conf;
 
-__attribute__((constructor)) 
-static void client_init(void)
+__attribute__((constructor)) static void client_init(void)
 {
     config_init(&client_conf);
 }
 
-__attribute__((destructor)) 
-static void client_deinit(void)
+__attribute__((destructor)) static void client_deinit(void)
 {
     config_destroy(&client_conf);
 }
@@ -40,7 +38,6 @@ static int client_parse_config(void)
     if (system == NULL)
     {
         log_e("%s", "not `system' parametr");
-        printf("null system\n");
         return -1;
     }
 
@@ -100,7 +97,6 @@ static int client_parse_config(void)
 
     if (stat(conf.mail_dir, &mail_dir_st) != 0)
     {
-        printf("incor maildir\n");
         log_e("incorrect mail dir: %s", strerror(errno));
         return -1;
     }
@@ -108,7 +104,6 @@ static int client_parse_config(void)
     if (config_setting_lookup_string(system, "user", &user_group) != CONFIG_TRUE)
     {
         log_e("%s", "No `user' parametr in config");
-        printf("in user\n");
         return -1;
     }
 
@@ -157,34 +152,42 @@ static int read_config(char *argv[])
 
     if (config_read(&client_conf, conf_f) != CONFIG_TRUE)
     {
-        printf("Error while config parsing\n");
         log_e("Error while config parsing: %s\n", config_error_text(&client_conf));
         return -1;
     }
 
     if (client_parse_config() != 0)
     {
-        printf("Unable to start client: incorrect config file\n");
         log_e("%s", "Unable to start client: incorrect config file");
         return -1;
     }
 
-    printf("config is correct. Ready to start client\n");
-        fflush(stdout);
+    fflush(stdout);
     log_i("config `%s' is correct. Ready to start client", argv[1]);
-    
+
     return 0;
+}
+
+void start_app(int argc, char *argv[])
+{
+    if (fork() == 0)
+        start_logger("/home/dev/pvs-course-project/smtp_proj/client/client.log");
+    else
+    {
+        if (argc == 1)
+        {
+            log_e("%s", CLIENT_USAGE);
+            //return -1;
+        }
+
+        read_config(argv);
+        run_client();
+        //return 0;
+    }
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc == 1)
-    {
-        log_e("%s", CLIENT_USAGE);
-        return -1;
-    }
-
-    read_config(argv);
-    run_client();
+    start_app(argc, argv);
     return 0;
 }
