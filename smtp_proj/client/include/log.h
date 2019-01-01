@@ -18,6 +18,8 @@ typedef enum log_level_type
 } log_level;
 
 
+int save_log(char *message);
+
 int start_logger(const char *log_filename_base);
 
 int stop_logger(void);
@@ -32,16 +34,16 @@ extern log_level cur_lvl;
 	if (lvl <= cur_lvl) {							\
 		switch (lvl) {							\
 		case INFO:							\
-			prefix = "I";						\
+			prefix = "INFO";						\
 			break;							\
 		case WARN:							\
-			prefix = "W";						\
+			prefix = "WARN";						\
 			break;							\
 		case ERROR:							\
-			prefix = "E";						\
+			prefix = "ERROR";						\
 			break;							\
 		case DEBUG:							\
-			prefix = "D";						\
+			prefix = "DEBUG";						\
 			break;							\
 		default:							\
 			abort();						\

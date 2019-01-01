@@ -18,7 +18,7 @@ struct client_conf
 	int proc_cnt;
 
 	log_level log_lvl;
-	const char *log_file;
+	const char *logs_dir;
 	const char *mail_dir;
 	//const char *queue_dir;
 	const char *hostname;

@@ -28,7 +28,7 @@ __attribute__((destructor)) static void client_deinit(void)
 static int client_parse_config(void)
 {
     struct stat mail_dir_st;
-    struct stat log_file_st;
+    struct stat logs_dir_st;
     int log_lvl;
     const char *user_group;
     struct passwd *pwd;
@@ -77,15 +77,15 @@ static int client_parse_config(void)
     conf.log_lvl = log_lvl;
     cur_lvl = log_lvl;
 
-    if (config_lookup_string(&client_conf, "log_file", &conf.log_file) != CONFIG_TRUE)
+    if (config_lookup_string(&client_conf, "logs_dir", &conf.logs_dir) != CONFIG_TRUE)
     {
-        log_e("%s", "incorrect `log_file'");
+        log_e("%s", "incorrect `logs_dir'");
         return -1;
     }
 
-    if (stat(conf.log_file, &log_file_st) != 0)
+    if (stat(conf.logs_dir, &logs_dir_st) != 0)
     {
-        log_e("incorrect log file: %s", strerror(errno));
+        log_e("incorrect logs dir: %s", strerror(errno));
         return -1;
     }
 
@@ -132,6 +132,12 @@ static int client_parse_config(void)
         return -1;
     }
 
+    if (logs_dir_st.st_uid != pwd->pw_uid || logs_dir_st.st_gid != gr->gr_gid)
+    {
+        log_e("access denied to %s", conf.logs_dir);
+        return -1;
+    }
+
     if (mail_dir_st.st_uid != pwd->pw_uid || mail_dir_st.st_gid != gr->gr_gid)
     {
         log_e("access denied to %s", conf.mail_dir);
@@ -168,7 +174,7 @@ static int read_config(char *argv[])
     return 0;
 }
 
-void start_app(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     if (fork() == 0)
         start_logger("/home/dev/pvs-course-project/smtp_proj/client/client.log");
@@ -177,17 +183,12 @@ void start_app(int argc, char *argv[])
         if (argc == 1)
         {
             log_e("%s", CLIENT_USAGE);
-            //return -1;
         }
-
-        read_config(argv);
-        run_client();
-        //return 0;
+        else
+        {
+            read_config(argv);
+            run_client();
+        }
     }
-}
-
-int main(int argc, char *argv[])
-{
-    start_app(argc, argv);
     return 0;
 }
