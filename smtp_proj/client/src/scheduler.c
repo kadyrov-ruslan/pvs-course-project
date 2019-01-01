@@ -30,7 +30,7 @@ int run_client()
 // Содержит бизнес логику, обрабатываемую главным процессом
 int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 {
-    log_i("%s", "Master proc worker started");
+    log_e("%s", "Worker for master proc uccessfully started");
     struct domain_mails domains_mails[MAX_MAIL_DOMAIN_NUM * 2];
     int domains_count = 0;
 
@@ -71,6 +71,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 // Содержит бизнес логику, обрабатываемую отдельным процессом
 int child_process_worker_start(int proc_idx)
 {
+    log_i("Worker for child proc `%d' successfully started.", getpid());
     struct mail_domain_dscrptr mail_domains_dscrptrs[MAX_MAIL_DOMAIN_NUM];
 
     fd_set read_fds;
