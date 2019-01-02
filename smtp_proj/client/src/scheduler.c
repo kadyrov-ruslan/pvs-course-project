@@ -30,7 +30,7 @@ int run_client()
 // Содержит бизнес логику, обрабатываемую главным процессом
 int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 {
-    log_e("%s", "Worker for master proc uccessfully started");
+    log_i("%s", "Worker for master proc uccessfully started");
     struct domain_mails domains_mails[MAX_MAIL_DOMAIN_NUM * 2];
     int domains_count = 0;
 
@@ -158,7 +158,7 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
     struct dirent *user_dir;
     DIR *mail_dir = opendir(conf.mail_dir);
     if (mail_dir == NULL)
-        printf("Could not open MAIL directory");
+        log_e("%s", "Could not open MAIL directory");
 
     while ((user_dir = readdir(mail_dir)) != NULL)
     {
@@ -176,12 +176,12 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
 
             DIR *new_dir = opendir(user_dir_new);
             if (new_dir == NULL)
-                printf("Could not open NEW directory");
+                log_e("%s", "Could not open NEW directory");
 
             int mails_count = count_dir_entries(user_dir_new);
             if (mails_count > 0)
             {
-                //printf("directory is NOT EMPTY\n");
+                log_i("Directory %s is not empty", user_dir_new);
                 struct dirent *new_entry;
                 while ((new_entry = readdir(new_dir)) != NULL)
                 {
@@ -248,8 +248,8 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
                     }
                 }
             }
-            //else
-            //printf("directory is EMPTY\n");
+            else
+                log_i("Directory %s is empty", user_dir_new);
 
             closedir(new_dir);
         }
@@ -262,7 +262,7 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
 int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs,
                        fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
-    printf("EMAIL %s\n", email_path);
+    log_i("Registering new email %s", email_path);
     char *saved_email_path = malloc(strlen(email_path));
     strcpy(saved_email_path, email_path);
 
@@ -306,44 +306,39 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         int cur_domain_socket_fd = 0;
         if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         {
-            printf("\n Error : Could not create socket \n");
+            log_e("Could not create socket to %s", cur_email_domain);
             return -1;
         }
 
         if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
         {
-            printf("\n Error : Connect Failed \n");
+            log_e("Connection to %s Failed ", cur_email_domain);
             return -1;
         }
         else
         {
             fcntl(cur_domain_socket_fd, F_SETFL, O_NONBLOCK);
-            printf("SUCCESS : Connected \n");
-            printf("Socket fd :  %d\n", cur_domain_socket_fd);
+            log_i("Successfully connected to %s ", cur_email_domain);
+            log_i("Socket fd : %d", cur_domain_socket_fd);
             mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
 
-            FD_SET(STDIN_FILENO, read_fds);
             FD_SET(cur_domain_socket_fd, read_fds);
-
-            // there is smth to send, set up write_fd for server socket
-            //if (server->send_buffer.current > 0)
             FD_SET(cur_domain_socket_fd, write_fds);
-            FD_SET(STDIN_FILENO, except_fds);
             FD_SET(cur_domain_socket_fd, except_fds);
         }
 
-        int max_mail_num = mail_domains_dscrptrs[ready_domains_count].mails_count;
-        mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
-        printf("email fd %d\n", mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num]);
+        //int max_mail_num = mail_domains_dscrptrs[ready_domains_count].mails_count;
+        //mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
+        //printf("email fd %d\n", mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num]);
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
     else
     {
-        printf("EMAIL EXISTs %s\n", cur_email_domain);
+        log_i("Socket for mail domain %s already binded", cur_email_domain);
         int max_mail_num = mail_domains_dscrptrs[found_domain_num].mails_count;
-        mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
-        printf("email fd %d\n", mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num]);
+        //mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
+        //printf("email fd %d\n", mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num]);
         return mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num];
     }
 }
