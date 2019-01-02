@@ -2,8 +2,6 @@
 #define _CLIENT_TYPES_H_
 
 #include "log.h"
-#include "mail_domain.h"
-
 #include <errno.h>
 #include <libconfig.h>
 #include <stdio.h>
@@ -20,10 +18,7 @@ struct client_conf
 	log_level log_lvl;
 	const char *logs_dir;
 	const char *mail_dir;
-	//const char *queue_dir;
 	const char *hostname;
-
-	struct MailDomain mail_domains[3]; 
 };
 
 extern struct client_conf conf;

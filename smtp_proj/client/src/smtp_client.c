@@ -24,6 +24,107 @@ void get_suffix(char *buf)
     free(tmp);
 }
 
+// Отправляет сообщение HELO почтовому серверу
+int send_helo(int socket_fd)
+{
+    bzero(buf, MAX_BUF_LEN);
+    gethostname(client_host_name, MAX_BUF_LEN);
+    strcpy(buf, "HELO ");
+    strcat(buf, client_host_name);
+    strcat(buf, "\n");
+    send_data(buf, 0, socket_fd);
+    bzero(buf, MAX_BUF_LEN);
+    read_fd_line(socket_fd, buf, MAX_BUF_LEN);
+    check_server_response_code(buf);
+    return 1;
+}
+
+// Отправляет сообщение MAIL FROM почтовому серверу
+int send_mail_from(int socket_fd, char *msg)
+{
+    char *token;
+    const char line[3] = "\n";
+    bzero(buf, MAX_BUF_LEN);
+    sprintf(buf, "MAIL FROM: <");
+    token = strtok(msg, line);
+    strcat(buf, token);
+    strcat(buf, ">\n");
+    send_data(buf, 1, socket_fd);
+    return 1;
+}
+
+// Отправляет сообщение RCPT TO почтовому серверу
+int send_rcpt_to(int socket_fd, char *msg)
+{
+    char *token;
+    const char line[3] = "\n";
+    bzero(buf, MAX_BUF_LEN);
+    strcpy(buf, "RCPT TO:<");
+    token = strtok(NULL, line);
+    strcat(buf, token);
+    strcat(buf, ">\n");
+    printf("%s\n", buf);
+    send_data(buf, 1, socket_fd);
+    return 1;
+}
+
+// Отправляет сообщение DATA почтовому серверу
+int send_data_msg(int socket_fd)
+{
+    bzero(buf, MAX_BUF_LEN);
+    strcpy(buf, "DATA\n");
+    printf("%s\n", buf);
+    send_data(buf, 1, socket_fd);
+    return 1;
+}
+
+// Отправляет заголовки сообщения почтовому серверу
+int send_headers(int socket_fd)
+{
+    char *token;
+    const char line[3] = "\n";
+    token = strtok(NULL, line);
+    //sending the headers
+    while (token != NULL)
+    {
+        //this condition means iterate on the token until you get to the black line(strlen=1)
+        //which separates the message headers from the message body
+        bzero(buf, MAX_BUF_LEN);
+        strcpy(buf, token);
+        strcat(buf, "\n");
+        send_data(buf, 0, socket_fd);
+        token = strtok(NULL, line);
+    }
+    return 1;
+}
+
+// Отправляет тело сообщения почтовому серверу
+int send_msg_body(int socket_fd)
+{
+    char *token;
+    const char line[3] = "\n";
+    while (token != NULL)
+    {
+        send_data(token, 0, socket_fd);
+        printf("\n");
+        token = strtok(NULL, line);
+    }
+
+    //sending point to end body
+    send_data("\r\n.\r\n", 1, socket_fd);
+    return 1;
+}
+
+// Отправляет сообщение QUIT почтовому серверу
+int send_quit(int socket_fd)
+{
+    bzero(buf, MAX_BUF_LEN);
+    strcpy(buf, "QUIT\n");
+    send_data(buf, 1, socket_fd);
+    return 1;
+}
+
+//TODO OBSOLETE
 void send_msg_to_server(int socket_fd, char *msg)
 {
     char buf[MAX_BUF_LEN];
@@ -32,9 +133,9 @@ void send_msg_to_server(int socket_fd, char *msg)
 
     //sending HELO
     bzero(buf, MAX_BUF_LEN);
-    gethostname(myHostName, MAX_BUF_LEN);
+    gethostname(client_host_name, MAX_BUF_LEN);
     strcpy(buf, "HELO ");
-    strcat(buf, myHostName);
+    strcat(buf, client_host_name);
     strcat(buf, "\n");
     send_data(buf, 0, socket_fd);
     bzero(buf, MAX_BUF_LEN);
@@ -98,7 +199,7 @@ void send_msg_to_server(int socket_fd, char *msg)
 }
 
 //Writes and reads data to/from output socket
-void send_data(char *data, int toRead, int socket_fd)
+void send_data(char *data, int to_read, int socket_fd)
 {
     //writing the data to the server and printing it to the screen
     int n = 0;
@@ -120,7 +221,7 @@ void send_data(char *data, int toRead, int socket_fd)
     }
 
     //reading messages from the server dynamically
-    if (toRead == 1)
+    if (to_read == 1)
     {                           //this means we need to read as well from the socket
         char tmp[INITIAL_SIZE]; //tmp string to store parts of the message
         int tmp_length = INITIAL_SIZE;

@@ -44,6 +44,8 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
         domains_count = get_domains_mails(domains_mails, domains_count);
         for (int i = 0; i < domains_count; i++)
         {
+            // проверяем, содержится ли домен в одном из процессов
+            //
             for (int j = 0; j < domains_mails[i].mails_count; j++)
             {
                 //TODO реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
@@ -56,7 +58,6 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
                 msgsnd(mail_procs[1].msg_queue_id, &new_msg, sizeof(new_msg), IPC_NOWAIT);
 
                 //printf("SENDING %s\n", domains_mails[i].mails_paths[j]);
-                //fflush(stdout);
             }
 
             domains_mails[i].mails_count = 0;
@@ -68,7 +69,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
     return 1;
 }
 
-// Содержит бизнес логику, обрабатываемую отдельным процессом
+// Содержит бизнес логику, обрабатываемую дочерним процессом
 int child_process_worker_start(int proc_idx)
 {
     log_i("Worker for child proc `%d' successfully started.", getpid());
@@ -83,7 +84,6 @@ int child_process_worker_start(int proc_idx)
     FD_ZERO(&except_fds);
 
     int maxfd = 1;
-
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0644);
     struct queue_msg cur_msg;
@@ -327,26 +327,19 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             FD_SET(cur_domain_socket_fd, except_fds);
         }
 
-        //int max_mail_num = mail_domains_dscrptrs[ready_domains_count].mails_count;
-        //mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
-        //printf("email fd %d\n", mail_domains_dscrptrs[ready_domains_count].mails_fds[max_mail_num]);
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
     else
     {
         log_i("Socket for mail domain %s already binded", cur_email_domain);
-        int max_mail_num = mail_domains_dscrptrs[found_domain_num].mails_count;
-        //mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num] = open(saved_email_path, O_RDONLY);
-        //printf("email fd %d\n", mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num]);
-        return mail_domains_dscrptrs[found_domain_num].mails_fds[max_mail_num];
+        return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
 }
 
 // Ожидает заданное число секунд
 void wait_for(unsigned int secs)
 {
-    // Get finishing time.
     unsigned int retTime = time(0) + secs;
     while (time(0) < retTime)
         ; // Loop until it arrives.
@@ -383,16 +376,4 @@ void shutdown_properly(int code)
 // }
 
 //printf("MQ id : %d \n", cur_proc_mq_id);
-//fflush(stdout);
-
-//printf("SON MSQ queue %d\n\n", cur_proc_mq_id);
-//fflush(stdout);
-
-//printf("MASTER MQ id : %d \n", mail_procs[1].msg_queue_id);
-//fflush(stdout);
-
-//printf("MASTER MQ id : %d \n", domains_mails[i].mails_count);
-//printf("[son] pid %d from [parent] pid %d\n", getpid(), getppid());
-
-//     printf("Data Received is : %s \n", cur_msg.mtext);
-// fflush(stdout);
+// printf("Data Received is : %s \n", cur_msg.mtext);

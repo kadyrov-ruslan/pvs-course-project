@@ -5,21 +5,21 @@
 #include <sys/ipc.h> 
 #include <sys/msg.h> 
 
+//Описывает один почтовый домен 
+//Сетевая информация, сокет и число писем
 struct mail_domain_dscrptr {
     char *domain;
     struct sockaddr_in domain_mail_server;
     int socket_fd;
     int mails_count;
-    
-    int mails_fds[100];
 };
 
 struct mail_process_dscrptr {
-    pid_t pid;
-    int msg_queue_id;
-    int domains_count;
-    int mails_count;
-    char *domains[60];
+    pid_t pid;         // pid дочернего процесса 
+    int msg_queue_id;  // id очереди сообщений, из которой процесс получает инфо о письмах
+    int domains_count; // число доменов, обрабатываемых процессом
+    int mails_count;   // число писем, обрабатываемых процессом
+    char *domains[60]; // названия обрабатываемых доменов
 };
 
 //Describes single domain mails, that have to be sent
@@ -32,8 +32,7 @@ struct domain_mails {
 typedef struct queue_msg { 
     long mtype;
     char mtext[500];
-    //struct domain_mails domain_mails;
 } queue_msg; 
 
 
-#endif // _SCHEDULER_H_
+#endif
