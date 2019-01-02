@@ -4,7 +4,6 @@
 #include "../../common/include/map.h"
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
-#include "../include/mail_domain.h"
 #include "../include/mx_utils.h"
 #include "../include/smtp_client.h"
 #include "../include/client_types.h"

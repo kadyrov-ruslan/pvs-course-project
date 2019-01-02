@@ -24,32 +24,20 @@ int save_log(char *message)
     strcpy(log_full_path, filename);
     strcat(log_full_path, ".log");
 
+    FILE *fp;
     if (access(log_full_path, F_OK) != -1)
-    {
-        FILE *fp = fopen(log_full_path, "ab");
-        if (fp != NULL)
-        {
-            char *full_log_msg = malloc(strlen(timeString) + 2 + strlen(message));
-            strcpy(full_log_msg, timeString);
-            strcat(full_log_msg, " ");
-            strcat(full_log_msg, message);
-            fputs(full_log_msg, fp);
-            fclose(fp);
-        }
-    }
+        fp = fopen(log_full_path, "ab");
     else
+        fp = fopen(log_full_path, "a+");
+
+    if (fp != NULL)
     {
-        FILE *f;
-        f = fopen(log_full_path, "a+");
-        if (f != NULL)
-        {
-            char *full_log_msg = malloc(strlen(timeString) + 2 + strlen(message));
-            strcpy(full_log_msg, timeString);
-            strcat(full_log_msg, " ");
-            strcat(full_log_msg, message);
-            fputs(full_log_msg, f);
-            fclose(f);
-        }
+        char *full_log_msg = malloc(strlen(timeString) + 2 + strlen(message));
+        strcpy(full_log_msg, timeString);
+        strcat(full_log_msg, " ");
+        strcat(full_log_msg, message);
+        fputs(full_log_msg, fp);
+        fclose(fp);
     }
 
     return 1;
