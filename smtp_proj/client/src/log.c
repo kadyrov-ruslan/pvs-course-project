@@ -9,9 +9,8 @@
 
 log_level cur_lvl;
 
-int save_log(char *message)
+int save_log(char *message, char *logs_dir)
 {
-    char filename[150];
     struct tm *timenow;
 
     time_t now = time(NULL);
@@ -19,16 +18,20 @@ int save_log(char *message)
 
     char timeString[12];
     strftime(timeString, sizeof(timeString), "%H:%M:%S", timenow);
-    strftime(filename, sizeof(filename), "/home/dev/pvs-course-project/smtp_proj/client/logs/log_%Y-%m-%d", timenow);
-    char *log_full_path = malloc(strlen(filename) + 4);
-    strcpy(log_full_path, filename);
-    strcat(log_full_path, ".log");
+    
+    char *log_path = malloc(strlen(logs_dir) + 50);
+    strcpy(log_path, logs_dir);
+
+    char filename[40];
+    strftime(filename, sizeof(filename), "log_%Y-%m-%d", timenow);
+    strcat(log_path, filename);
+    strcat(log_path, ".log");
 
     FILE *fp;
-    if (access(log_full_path, F_OK) != -1)
-        fp = fopen(log_full_path, "ab");
+    if (access(log_path, F_OK) != -1)
+        fp = fopen(log_path, "ab");
     else
-        fp = fopen(log_full_path, "a+");
+        fp = fopen(log_path, "a+");
 
     if (fp != NULL)
     {
@@ -43,8 +46,9 @@ int save_log(char *message)
     return 1;
 }
 
-int start_logger(const char *log_filename_base)
+int start_logger(char *log_filename_base)
 {
+        printf("Log path : %s \n", log_filename_base);
     key_t key = ftok("/tmp", 65);
     int log_queue_id = msgget(key, 0644);
     struct queue_msg cur_msg;
@@ -53,7 +57,7 @@ int start_logger(const char *log_filename_base)
         if (msgrcv(log_queue_id, &cur_msg, sizeof(cur_msg), 1, IPC_NOWAIT) != -1)
         {
             if (strlen(cur_msg.mtext) != 0)
-                save_log(cur_msg.mtext);
+                save_log(cur_msg.mtext, log_filename_base);
         }
     }
     return 0;
