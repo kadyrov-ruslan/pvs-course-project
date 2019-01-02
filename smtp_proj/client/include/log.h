@@ -17,9 +17,9 @@ typedef enum log_level_type
 } log_level;
 
 
-int save_log(char *message);
+int save_log(char *message, char *logs_dir);
 
-int start_logger(const char *log_filename_base);
+int start_logger(char *log_filename_base);
 
 int stop_logger(void);
 

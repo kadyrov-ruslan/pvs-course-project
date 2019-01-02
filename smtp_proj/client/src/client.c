@@ -170,14 +170,13 @@ static int read_config(char *argv[])
 
     fflush(stdout);
     log_i("config `%s' is correct. Ready to start client", argv[1]);
-
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
     if (fork() == 0)
-        start_logger("/home/dev/pvs-course-project/smtp_proj/client/client.log");
+        start_logger("/home/dev/pvs-course-project/smtp_proj/client/logs/");
     else
     {
         if (argc == 1)
