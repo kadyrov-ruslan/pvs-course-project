@@ -48,8 +48,8 @@ int save_log(char *message, char *logs_dir)
 
 int start_logger(char *log_filename_base)
 {
-        printf("Log path : %s \n", log_filename_base);
-    key_t key = ftok("/tmp", 65);
+    printf("Log path : %s \n", log_filename_base);
+    key_t key = ftok("/tmp", 33);
     int log_queue_id = msgget(key, 0644);
     struct queue_msg cur_msg;
     while (1)
@@ -71,7 +71,7 @@ int stop_logger(void)
 
 int send_log_message(log_level log_lvl, char *message)
 {
-    key_t key = ftok("/tmp", 65);
+    key_t key = ftok("/tmp", 33);
     int log_queue_id = msgget(key, 0666 | IPC_CREAT);
     struct queue_msg new_msg;
     new_msg.mtype = 1;

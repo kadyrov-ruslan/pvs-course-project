@@ -1,7 +1,7 @@
 #ifndef _SCHEDULER_H_
 #define _SCHEDULER_H_
 
-#include "../../common/include/map.h"
+#include "../include/map.h"
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
 #include "../include/mx_utils.h"

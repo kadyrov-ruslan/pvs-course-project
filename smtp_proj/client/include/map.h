@@ -4,6 +4,7 @@
 #include <resolv.h>
 #include <sys/ipc.h> 
 #include <sys/msg.h> 
+#include "list.h"
 
 //Описывает один почтовый домен 
 //Сетевая информация, сокет и число писем
@@ -12,6 +13,7 @@ struct mail_domain_dscrptr {
     struct sockaddr_in domain_mail_server;
     int socket_fd;
     int mails_count;
+    struct node_t *mails_list;
 };
 
 struct mail_process_dscrptr {
