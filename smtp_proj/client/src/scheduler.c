@@ -83,7 +83,7 @@ int child_process_worker_start(int proc_idx)
     FD_ZERO(&write_fds);
     FD_ZERO(&except_fds);
 
-    int maxfd = 1;
+    //int maxfd = 1;
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0644);
     struct queue_msg cur_msg;
@@ -93,8 +93,8 @@ int child_process_worker_start(int proc_idx)
         {
             if (strlen(cur_msg.mtext) != 0)
             {
-                maxfd = register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds);
-                printf("maxfd .%d\n", maxfd);
+                register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds);
+                //printf("maxfd .%d\n", maxfd);
                 //в домене должно быть поле с текущим письмом, которое отправляется
                 //в рамках select() Работаем только с сокетами, файлы можно не считывать в файловый дескриптор
 
@@ -327,12 +327,20 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             FD_SET(cur_domain_socket_fd, except_fds);
         }
 
+        printf("Domain NUM %d \n", ready_domains_count);
+        mail_domains_dscrptrs[ready_domains_count].mails_list = malloc(sizeof(node_t));
+        add_first(&mail_domains_dscrptrs[ready_domains_count].mails_list, saved_email_path);
+        log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
+        printf("List count %d \n", count(mail_domains_dscrptrs[ready_domains_count].mails_list));
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
     else
     {
         log_i("Socket for mail domain %s already binded", cur_email_domain);
+        add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
+        log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
+        printf("List count %d \n", count(mail_domains_dscrptrs[found_domain_num].mails_list));
         return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
 }

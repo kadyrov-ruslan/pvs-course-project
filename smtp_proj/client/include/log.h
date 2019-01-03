@@ -1,9 +1,9 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include "../../common/include/map.h"
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
+#include "map.h"
 #include <sys/ipc.h> 
 #include <sys/msg.h> 
 

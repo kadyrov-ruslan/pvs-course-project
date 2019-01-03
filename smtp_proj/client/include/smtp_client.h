@@ -9,7 +9,7 @@
 #include <resolv.h>
 #include <assert.h>
 
-#include "../../common/include/map.h"
+#include "../include/map.h"
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
 #include "../include/client_types.h"
