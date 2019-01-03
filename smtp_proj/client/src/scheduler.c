@@ -1,8 +1,4 @@
 #include "../include/scheduler.h"
-#include <time.h>
-
-#define PROC_NUM 2
-#define MAX_MAIL_DOMAIN_NUM 50
 
 //autofsm для smtp протокола
 
@@ -64,7 +60,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
             memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
         }
 
-        wait_for(10);
+        wait_for(25);
     }
     return 1;
 }
@@ -83,7 +79,6 @@ int child_process_worker_start(int proc_idx)
     FD_ZERO(&write_fds);
     FD_ZERO(&except_fds);
 
-    //int maxfd = 1;
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0644);
     struct queue_msg cur_msg;
@@ -92,60 +87,26 @@ int child_process_worker_start(int proc_idx)
         if (msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, IPC_NOWAIT) != -1)
         {
             if (strlen(cur_msg.mtext) != 0)
-            {
                 register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds);
-                //printf("maxfd .%d\n", maxfd);
-                //в домене должно быть поле с текущим письмом, которое отправляется
-                //в рамках select() Работаем только с сокетами, файлы можно не считывать в файловый дескриптор
-
-                //int activity = select(maxfd+1, &read_fds, &write_fds, &except_fds, NULL);
-                // switch (activity)
-                // {
-                // case -1:
-                //     perror("select()");
-                //     shutdown_properly(EXIT_FAILURE);
-
-                // case 0:
-                //     printf("select() returns 0.\n");
-                //     shutdown_properly(EXIT_FAILURE);
-
-                // default:
-                //     /* All fd_set's should be checked. */
-                //     if (FD_ISSET(STDIN_FILENO, &read_fds))
-                //     {
-                //         printf("FD_ISSET(STDIN_FILENO, &read_fds).\n");
-                //         // if (handle_read_from_stdin(&server, client_name) != 0)
-                //         //     shutdown_properly(EXIT_FAILURE);
-                //     }
-
-                //     if (FD_ISSET(STDIN_FILENO, &except_fds))
-                //     {
-                //         printf("except_fds for stdin.\n");
-                //         shutdown_properly(EXIT_FAILURE);
-                //     }
-
-                //     if (FD_ISSET(email_socket_fd, &read_fds))
-                //     {
-                //         printf("FD_ISSET(maxfd, &read_fds).\n");
-                //         // if (receive_from_peer(&server, &handle_received_message) != 0)
-                //         //     shutdown_properly(EXIT_FAILURE);
-                //     }
-
-                //     if (FD_ISSET(email_socket_fd, &write_fds))
-                //     {
-                //         printf("FD_ISSET(maxfd, &write_fds).\n");
-                //         // if (send_to_peer(&server) != 0)
-                //         //     shutdown_properly(EXIT_FAILURE);
-                //     }
-
-                //     if (FD_ISSET(email_socket_fd, &except_fds))
-                //     {
-                //         printf("except_fds for server.\n");
-                //         shutdown_properly(EXIT_FAILURE);
-                //     }
-                //}
-            }
         }
+
+        int maxfd = 0;
+        for (int i = 0; i < ready_domains_count; i++)
+        {
+            struct mail_domain_dscrptr cur_domain = mail_domains_dscrptrs[i];
+            if (cur_domain.socket_fd > maxfd)
+                maxfd = cur_domain.socket_fd;
+        }
+
+        // Проверяем, есть ли в каждом из доменов необработанные письма
+        for (int i = 0; i < ready_domains_count; i++)
+        {
+            struct mail_domain_dscrptr cur_domain = mail_domains_dscrptrs[i];
+            if (count(cur_domain.mails_list) > 0)
+                process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
+        }
+
+        wait_for(5);
     }
 
     return 1;
@@ -346,6 +307,48 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     }
 }
 
+// Выполняет обработку нового письма домена
+void process_mail_domain(int maxfd, struct mail_domain_dscrptr cur_mail_domain,
+    fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
+{
+    int activity = select(maxfd + 1, read_fds, write_fds, except_fds, NULL);
+    switch (activity)
+    {
+    case -1:
+        log_e("%s", "select() returned -1");
+        shutdown_properly(EXIT_FAILURE);
+
+    case 0:
+        log_e("%s", "select() returned 0");
+        shutdown_properly(EXIT_FAILURE);
+
+    default:
+        if (FD_ISSET(cur_mail_domain.socket_fd, read_fds))
+        {
+            log_i("Socket %d of %s domain is in read_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
+            // ветвление на чтение ответов от сервера
+        }
+
+        if (FD_ISSET(cur_mail_domain.socket_fd, write_fds))
+        {
+            log_i("Socket %d of %s domain is in write_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
+            // ветвление на чтение письма в буфер (в том числе и rename) и отправку HELO
+            // отправку from to 
+            // отправку rcpt to
+            // отправку data
+            // отправку headers
+            // отправку body
+            // отправку quit
+        }
+
+        if (FD_ISSET(cur_mail_domain.socket_fd, except_fds))
+        {
+            log_i("Socket %d of %s domain is in except_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
+            shutdown_properly(EXIT_FAILURE);
+        }
+    }
+}
+
 // Ожидает заданное число секунд
 void wait_for(unsigned int secs)
 {
@@ -361,17 +364,9 @@ void shutdown_properly(int code)
     exit(code);
 }
 
-// for (int i = 0; i < ready_domains_count; i++)
-// {
-//     if (strcmp(mail_domains_dscrptrs[i].domain, cur_email_domain) == 0)
-//     {
-//         printf("EMAIL DOMAIN %s\n", cur_email_domain);
-//         fflush(stdout);
-//         //printf("SENDING DATA . . . \n");
-//         //send_msg_to_server(mail_domains_dscrptrs[i].socket_fd, email_msg);
+
 //         char *email_new_name = str_replace(saved_email_path, "new", "cur");
 //         printf("ENTRY NEW NAME %s\n", email_new_name);
-//         fflush(stdout);
 
 //         // int ret;
 //         // ret = rename(email_full_names[j], email_new_name);
@@ -380,9 +375,6 @@ void shutdown_properly(int code)
 //         // else
 //         //     printf("Error: unable to rename the file\n");
 
-//         break;
-//     }
-// }
 
 //printf("MQ id : %d \n", cur_proc_mq_id);
 // printf("Data Received is : %s \n", cur_msg.mtext);
