@@ -327,11 +327,12 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             FD_SET(cur_domain_socket_fd, except_fds);
         }
 
-        printf("Domain NUM %d \n", ready_domains_count);
         mail_domains_dscrptrs[ready_domains_count].mails_list = malloc(sizeof(node_t));
+        mail_domains_dscrptrs[ready_domains_count].mails_list->next = NULL;
+
         add_first(&mail_domains_dscrptrs[ready_domains_count].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
-        printf("List count %d \n", count(mail_domains_dscrptrs[ready_domains_count].mails_list));
+        log_i("List count %d \n", count(mail_domains_dscrptrs[ready_domains_count].mails_list));
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
@@ -340,7 +341,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         log_i("Socket for mail domain %s already binded", cur_email_domain);
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
-        printf("List count %d \n", count(mail_domains_dscrptrs[found_domain_num].mails_list));
+        log_i("List count %d \n", count(mail_domains_dscrptrs[found_domain_num].mails_list));
         return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
 }
