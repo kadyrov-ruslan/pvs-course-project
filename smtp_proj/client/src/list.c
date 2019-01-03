@@ -85,11 +85,9 @@ int remove_by_index(node_t ** head, int n)
 
 int count(node_t *head)
 {
-    printf("loop start\n");
-    int i = 0;
-    while (head->val != NULL)
+    int i = -1;
+    while (head != NULL)
     {
-        printf("loop : %s \n", head->val);
         head = head->next;
         i++;
     }
