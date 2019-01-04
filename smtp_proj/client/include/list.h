@@ -22,7 +22,6 @@ int remove_last(node_t * head);
 int remove_by_index(node_t ** head, int n);
 int count(node_t *head);
 
-
 #endif
 
 

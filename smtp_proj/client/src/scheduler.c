@@ -292,6 +292,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         mail_domains_dscrptrs[ready_domains_count].mails_list->next = NULL;
 
         add_first(&mail_domains_dscrptrs[ready_domains_count].mails_list, saved_email_path);
+        mail_domains_dscrptrs[ready_domains_count].state = READY;
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("List count %d \n", count(mail_domains_dscrptrs[ready_domains_count].mails_list));
         ready_domains_count++;
@@ -327,18 +328,90 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr cur_mail_domain,
         {
             log_i("Socket %d of %s domain is in read_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
             // ветвление на чтение ответов от сервера
+            switch (cur_mail_domain.state)
+            {
+            case READY:
+                //read response
+                cur_mail_domain.state = MAIL_FROM_MSG;
+                break;
+
+            case MAIL_FROM_MSG:
+                printf("zero");
+                break;
+
+            case RCPT_TO_MSG:
+                printf("pos inf");
+                break;
+
+            case DATA_MSG:
+                printf("pos inf");
+                break;
+
+            case HEADERS_MSG:
+                printf("pos inf");
+                break;
+
+            case BODY_MSG:
+                printf("pos inf");
+                break;
+
+            default:
+                printf("not special");
+                break;
+            }
         }
 
         if (FD_ISSET(cur_mail_domain.socket_fd, write_fds))
         {
             log_i("Socket %d of %s domain is in write_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
-            // ветвление на чтение письма в буфер (в том числе и rename) и отправку HELO
-            // отправку from to 
-            // отправку rcpt to
-            // отправку data
-            // отправку headers
-            // отправку body
-            // отправку quit
+            switch (cur_mail_domain.state)
+            {
+            case READY:
+                printf("READY WRITE_FDS \n");
+                //char *msg = read_msg_file((*cur_mail_domain.mails_list).val);
+                char *email_new_name = str_replace((*cur_mail_domain.mails_list).val, "new", "cur");
+                printf("ENTRY NEW NAME %s\n", email_new_name);
+
+                // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
+                // if (ret == 0)
+                //     printf("File renamed successfully\n");
+                // else
+                //     printf("Error: unable to rename the file\n");
+
+                // remove_first(&cur_mail_domain.mails_list);
+                //send_helo(cur_mail_domain.socket_fd);
+                break;
+
+            case MAIL_FROM_MSG:
+                printf("MAIL_FROM_MSG WRITE_FDS \n");
+                //send_mail_from(cur_mail_domain.socket_fd, cur_mail_domain.buffer);
+                break;
+
+            case RCPT_TO_MSG:
+                printf("RCPT_TO_MSG WRITE_FDS \n");
+                //send_rcpt_to(cur_mail_domain.socket_fd, cur_mail_domain.buffer);
+                break;
+
+            case DATA_MSG:
+                printf("DATA_MSG WRITE_FDS \n");
+                //send_data_msg(cur_mail_domain.socket_fd);
+                break;
+
+            case HEADERS_MSG:
+                printf("HEADERS_MSG WRITE_FDS \n");
+                //send_headers(cur_mail_domain.socket_fd);
+                break;
+
+            case BODY_MSG:
+                printf("BODY_MSG WRITE_FDS \n");
+                //send_msg_body(cur_mail_domain.socket_fd);
+                break;
+
+            default:
+                printf("DEFAULT WRITE_FDS \n");
+                //send_quit(cur_mail_domain.socket_fd);
+                break;
+            }
         }
 
         if (FD_ISSET(cur_mail_domain.socket_fd, except_fds))
@@ -363,17 +436,6 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
-
-
-//         char *email_new_name = str_replace(saved_email_path, "new", "cur");
-//         printf("ENTRY NEW NAME %s\n", email_new_name);
-
-//         // int ret;
-//         // ret = rename(email_full_names[j], email_new_name);
-//         // if (ret == 0)
-//         //     printf("File renamed successfully\n");
-//         // else
-//         //     printf("Error: unable to rename the file\n");
 
 
 //printf("MQ id : %d \n", cur_proc_mq_id);

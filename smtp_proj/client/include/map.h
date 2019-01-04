@@ -6,6 +6,18 @@
 #include <sys/msg.h> 
 #include "list.h"
 
+typedef enum mail_process_state
+{
+	READY,
+	HELO_MSG,
+	MAIL_FROM_MSG,
+	RCPT_TO_MSG,
+	DATA_MSG,
+    HEADERS_MSG,
+    BODY_MSG,
+    QUIT_MSG
+} mail_process_state;
+
 //Описывает один почтовый домен 
 //Сетевая информация, сокет и число писем
 struct mail_domain_dscrptr {
@@ -14,6 +26,8 @@ struct mail_domain_dscrptr {
     int socket_fd;
     int mails_count;
     struct node_t *mails_list;
+    mail_process_state state;
+    char *buffer;
 };
 
 struct mail_process_dscrptr {
@@ -35,6 +49,5 @@ typedef struct queue_msg {
     long mtype;
     char mtext[500];
 } queue_msg; 
-
 
 #endif
