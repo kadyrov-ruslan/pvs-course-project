@@ -25,8 +25,11 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count);
 int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs,
     fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
 
-void process_mail_domain(int maxfd, struct mail_domain_dscrptr cur_mail_domain,
-    fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);    
+void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
+    fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);   
+
+void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain);
+void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain);     
 
 void wait_for (unsigned int secs);
 void shutdown_properly(int code);

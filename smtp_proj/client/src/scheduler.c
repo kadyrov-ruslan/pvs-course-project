@@ -94,6 +94,7 @@ int child_process_worker_start(int proc_idx)
         for (int i = 0; i < ready_domains_count; i++)
         {
             struct mail_domain_dscrptr cur_domain = mail_domains_dscrptrs[i];
+            printf("DOMAIN STATUS %d \n", cur_domain.state);
             if (cur_domain.socket_fd > maxfd)
                 maxfd = cur_domain.socket_fd;
         }
@@ -101,8 +102,8 @@ int child_process_worker_start(int proc_idx)
         // Проверяем, есть ли в каждом из доменов необработанные письма
         for (int i = 0; i < ready_domains_count; i++)
         {
-            struct mail_domain_dscrptr cur_domain = mail_domains_dscrptrs[i];
-            if (count(cur_domain.mails_list) > 0)
+            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
+            if (count(cur_domain->mails_list) > 0)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
 
@@ -309,7 +310,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
 }
 
 // Выполняет обработку нового письма домена
-void process_mail_domain(int maxfd, struct mail_domain_dscrptr cur_mail_domain,
+void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
     fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
     int activity = select(maxfd + 1, read_fds, write_fds, except_fds, NULL);
@@ -324,101 +325,114 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr cur_mail_domain,
         shutdown_properly(EXIT_FAILURE);
 
     default:
-        if (FD_ISSET(cur_mail_domain.socket_fd, read_fds))
+        if (FD_ISSET(cur_mail_domain->socket_fd, read_fds))
         {
-            log_i("Socket %d of %s domain is in read_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
-            switch (cur_mail_domain.state)
-            {
-            case READY:
-                printf("READY READ_FDS \n");
-                //read response
-                cur_mail_domain.state = MAIL_FROM_MSG;
-                break;
-
-            case MAIL_FROM_MSG:
-                printf("MAIL_FROM_MSG READ_FDS \n");
-                break;
-
-            case RCPT_TO_MSG:
-                printf("RCPT_TO_MSG READ_FDS \n");
-                break;
-
-            case DATA_MSG:
-                printf("DATA_MSG READ_FDS \n");
-                break;
-
-            case HEADERS_MSG:
-                printf("HEADERS_MSG READ_FDS \n");
-                break;
-
-            case BODY_MSG:
-                printf("BODY_MSG READ_FDS \n");
-                break;
-
-            default:
-                printf("DEFAULT READ_FDS \n");
-                break;
-            }
+            log_i("Socket %d of %s domain is in read_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+            handle_read_socket(cur_mail_domain);
         }
 
-        if (FD_ISSET(cur_mail_domain.socket_fd, write_fds))
+        if (FD_ISSET(cur_mail_domain->socket_fd, write_fds))
         {
-            log_i("Socket %d of %s domain is in write_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
-            switch (cur_mail_domain.state)
-            {
-            case READY:
-                printf("READY WRITE_FDS \n");
-                //char *msg = read_msg_file((*cur_mail_domain.mails_list).val);
-                char *email_new_name = str_replace((*cur_mail_domain.mails_list).val, "new", "cur");
-                printf("ENTRY NEW NAME %s\n", email_new_name);
-
-                // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
-                // if (ret == 0)
-                //     printf("File renamed successfully\n");
-                // else
-                //     printf("Error: unable to rename the file\n");
-
-                // remove_first(&cur_mail_domain.mails_list);
-                //send_helo(cur_mail_domain.socket_fd);
-                break;
-
-            case MAIL_FROM_MSG:
-                printf("MAIL_FROM_MSG WRITE_FDS \n");
-                //send_mail_from(cur_mail_domain.socket_fd, cur_mail_domain.buffer);
-                break;
-
-            case RCPT_TO_MSG:
-                printf("RCPT_TO_MSG WRITE_FDS \n");
-                //send_rcpt_to(cur_mail_domain.socket_fd, cur_mail_domain.buffer);
-                break;
-
-            case DATA_MSG:
-                printf("DATA_MSG WRITE_FDS \n");
-                //send_data_msg(cur_mail_domain.socket_fd);
-                break;
-
-            case HEADERS_MSG:
-                printf("HEADERS_MSG WRITE_FDS \n");
-                //send_headers(cur_mail_domain.socket_fd);
-                break;
-
-            case BODY_MSG:
-                printf("BODY_MSG WRITE_FDS \n");
-                //send_msg_body(cur_mail_domain.socket_fd);
-                break;
-
-            default:
-                printf("DEFAULT WRITE_FDS \n");
-                //send_quit(cur_mail_domain.socket_fd);
-                break;
-            }
+            log_i("Socket %d of %s domain is in write_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+            handle_write_socket(cur_mail_domain);
         }
 
-        if (FD_ISSET(cur_mail_domain.socket_fd, except_fds))
+        if (FD_ISSET(cur_mail_domain->socket_fd, except_fds))
         {
-            log_i("Socket %d of %s domain is in except_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
+            log_i("Socket %d of %s domain is in except_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
             shutdown_properly(EXIT_FAILURE);
         }
+    }
+}
+
+// Обрабатывает почтовый домен в случае, когда его сокет находится в write_fds
+void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain)
+{
+    switch (cur_mail_domain->state)
+    {
+    case READY:
+        printf("READY WRITE_FDS \n");
+        //char *msg = read_msg_file((*cur_mail_domain.mails_list).val);
+        //char *email_new_name = str_replace((*cur_mail_domain->mails_list).val, "new", "cur");
+        //printf("ENTRY NEW NAME %s\n", email_new_name);
+        cur_mail_domain->state = MAIL_FROM_MSG;
+
+        // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
+        // if (ret == 0)
+        //     printf("File renamed successfully\n");
+        // else
+        //     printf("Error: unable to rename the file\n");
+
+        // remove_first(&cur_mail_domain.mails_list);
+        //send_helo(cur_mail_domain.socket_fd);
+        break;
+
+    case MAIL_FROM_MSG:
+        printf("MAIL_FROM_MSG WRITE_FDS \n");
+        //send_mail_from(cur_mail_domain.socket_fd, cur_mail_domain.buffer);
+        break;
+
+    case RCPT_TO_MSG:
+        printf("RCPT_TO_MSG WRITE_FDS \n");
+        //send_rcpt_to(cur_mail_domain.socket_fd, cur_mail_domain.buffer);
+        break;
+
+    case DATA_MSG:
+        printf("DATA_MSG WRITE_FDS \n");
+        //send_data_msg(cur_mail_domain.socket_fd);
+        break;
+
+    case HEADERS_MSG:
+        printf("HEADERS_MSG WRITE_FDS \n");
+        //send_headers(cur_mail_domain.socket_fd);
+        break;
+
+    case BODY_MSG:
+        printf("BODY_MSG WRITE_FDS \n");
+        //send_msg_body(cur_mail_domain.socket_fd);
+        break;
+
+    default:
+        printf("DEFAULT WRITE_FDS \n");
+        //send_quit(cur_mail_domain.socket_fd);
+        break;
+    }
+}
+
+// Обрабатывает почтовый домен в случае, когда его сокет находится в read_fds
+void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain)
+{
+    switch (cur_mail_domain->state)
+    {
+    case READY:
+        log_i("%s", "READY READ_FDS \n");
+        //read response
+        cur_mail_domain->state = MAIL_FROM_MSG;
+        break;
+
+    case MAIL_FROM_MSG:
+        printf("MAIL_FROM_MSG READ_FDS \n");
+        break;
+
+    case RCPT_TO_MSG:
+        printf("RCPT_TO_MSG READ_FDS \n");
+        break;
+
+    case DATA_MSG:
+        printf("DATA_MSG READ_FDS \n");
+        break;
+
+    case HEADERS_MSG:
+        printf("HEADERS_MSG READ_FDS \n");
+        break;
+
+    case BODY_MSG:
+        printf("BODY_MSG READ_FDS \n");
+        break;
+
+    default:
+        printf("DEFAULT READ_FDS \n");
+        break;
     }
 }
 
