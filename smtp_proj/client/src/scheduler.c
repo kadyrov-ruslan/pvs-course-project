@@ -327,36 +327,36 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr cur_mail_domain,
         if (FD_ISSET(cur_mail_domain.socket_fd, read_fds))
         {
             log_i("Socket %d of %s domain is in read_fds", cur_mail_domain.socket_fd, cur_mail_domain.domain);
-            // ветвление на чтение ответов от сервера
             switch (cur_mail_domain.state)
             {
             case READY:
+                printf("READY READ_FDS \n");
                 //read response
                 cur_mail_domain.state = MAIL_FROM_MSG;
                 break;
 
             case MAIL_FROM_MSG:
-                printf("zero");
+                printf("MAIL_FROM_MSG READ_FDS \n");
                 break;
 
             case RCPT_TO_MSG:
-                printf("pos inf");
+                printf("RCPT_TO_MSG READ_FDS \n");
                 break;
 
             case DATA_MSG:
-                printf("pos inf");
+                printf("DATA_MSG READ_FDS \n");
                 break;
 
             case HEADERS_MSG:
-                printf("pos inf");
+                printf("HEADERS_MSG READ_FDS \n");
                 break;
 
             case BODY_MSG:
-                printf("pos inf");
+                printf("BODY_MSG READ_FDS \n");
                 break;
 
             default:
-                printf("not special");
+                printf("DEFAULT READ_FDS \n");
                 break;
             }
         }
