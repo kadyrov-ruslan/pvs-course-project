@@ -1,7 +1,5 @@
 #include "../include/scheduler.h"
 
-//autofsm для smtp протокола
-
 int ready_domains_count = 0; // юзается в чайлд процессах
 
 int run_client()
@@ -26,7 +24,7 @@ int run_client()
 // Содержит бизнес логику, обрабатываемую главным процессом
 int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 {
-    log_i("%s", "Worker for master proc uccessfully started");
+    log_i("%s", "Worker for master proc successfully started");
     struct domain_mails domains_mails[MAX_MAIL_DOMAIN_NUM * 2];
     int domains_count = 0;
 
@@ -41,7 +39,6 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
         for (int i = 0; i < domains_count; i++)
         {
             // проверяем, содержится ли домен в одном из процессов
-            //
             for (int j = 0; j < domains_mails[i].mails_count; j++)
             {
                 //TODO реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
@@ -60,7 +57,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
             memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
         }
 
-        wait_for(25);
+        wait_for(30);
     }
     return 1;
 }
@@ -206,6 +203,9 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
                                 domains_mails[found_domain_num].mails_count++;
                             }
                         }
+
+                        free(email_full_name);
+                        free(tmp_cur_mail_domain);
                         free(tokens);
                     }
                 }
@@ -213,6 +213,8 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
             else
                 log_i("Directory %s is empty", user_dir_new);
 
+            free(user_dir_full_path);
+            free(user_dir_new);
             closedir(new_dir);
         }
     }
@@ -299,6 +301,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
+    // Домен уже зарегистрирован
     else
     {
         log_i("Socket for mail domain %s already binded", cur_email_domain);
@@ -307,11 +310,14 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         log_i("List count %d \n", count(mail_domains_dscrptrs[found_domain_num].mails_list));
         return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
+
+    free(saved_email_path);
+    free(tmp_cur_mail_domain);
 }
 
 // Выполняет обработку нового письма домена
 void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
-    fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
+                         fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
     int activity = select(maxfd + 1, read_fds, write_fds, except_fds, NULL);
     switch (activity)
@@ -450,7 +456,6 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
-
 
 //printf("MQ id : %d \n", cur_proc_mq_id);
 // printf("Data Received is : %s \n", cur_msg.mtext);
