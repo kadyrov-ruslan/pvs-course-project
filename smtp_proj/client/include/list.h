@@ -9,19 +9,18 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-typedef struct node_t {
+typedef struct node_t
+{
     char *val;
     struct node_t *next;
 } node_t;
 
-void add_first(struct node_t ** head, char *val);
-void add_last(node_t * head, char *val);
+void add_first(struct node_t **head, char *val);
+void add_last(node_t *head, char *val);
 
-int remove_first(node_t ** head);
-int remove_last(node_t * head);
-int remove_by_index(node_t ** head, int n);
+int remove_first(node_t **head);
+int remove_last(node_t *head);
+int remove_by_index(node_t **head, int n);
 int count(node_t *head);
 
 #endif
-
-

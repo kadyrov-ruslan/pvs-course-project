@@ -18,7 +18,7 @@ int save_log(char *message, char *logs_dir)
 
     char timeString[12];
     strftime(timeString, sizeof(timeString), "%H:%M:%S", timenow);
-    
+
     char *log_path = malloc(strlen(logs_dir) + 50);
     strcpy(log_path, logs_dir);
 

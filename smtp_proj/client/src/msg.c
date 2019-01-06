@@ -10,7 +10,6 @@ char *read_msg_file(char *email_path)
         exit(0);
     }
 
-    //initializing variables
     char *msg = (char *)malloc(INITIAL_SIZE);
     char tmp[INITIAL_SIZE];
     int msg_length = INITIAL_SIZE;
@@ -48,6 +47,6 @@ char *read_msg_file(char *email_path)
     }
 
     fclose(fp);
-    //printf("EMAIL FILE MSG %s\n", msg);
+    printf("EMAIL FILE MSG %s\n", msg);
     return msg;
 }

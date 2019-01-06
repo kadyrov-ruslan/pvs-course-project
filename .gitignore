@@ -6,3 +6,5 @@ smtp_proj/maildir/out/mailru/mgs_10.12.2017.log
 smtp_proj/common/src/string_utils.o
 smtp_proj/common/src/dir_utils.o
 smtp_proj/common/src/log.o
+smtp_proj/client/tests/smtp_client_test
+smtp_proj/client/tests/obj/smtp_client_test.o

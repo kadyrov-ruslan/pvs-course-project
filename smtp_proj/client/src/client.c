@@ -67,7 +67,6 @@ static int client_parse_config(void)
         conf.hostname = hostname_sys;
     }
     log_i("`hostname' %s'", conf.hostname);
-
     if (config_setting_lookup_int(system, "log_level", &log_lvl) != CONFIG_TRUE ||
         log_lvl < 0 || log_lvl >= LOG_LVL_LAST)
     {

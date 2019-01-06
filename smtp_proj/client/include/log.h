@@ -15,14 +15,10 @@ typedef enum
 	DEBUG,
 } log_level;
 
-
-int save_log(char *message, char *logs_dir);
-
 int start_logger(char *log_filename_base);
-
 int stop_logger(void);
-
 int send_log_message(log_level log_lvl, char *message);
+int save_log(char *message, char *logs_dir);
 
 extern log_level cur_lvl;
 
