@@ -76,5 +76,7 @@ int read_fd_line(int fd, char *line, int lim)
     if (c == '\n')
         line[i++] = c;
     line[i] = '\0';
+
+    printf("SERVER RESPONSE %s \n", line);
     return i;
 }

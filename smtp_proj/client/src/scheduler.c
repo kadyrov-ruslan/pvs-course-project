@@ -286,7 +286,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             log_i("Socket fd : %d", cur_domain_socket_fd);
             mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
 
-            FD_SET(cur_domain_socket_fd, read_fds);
+            //FD_SET(cur_domain_socket_fd, read_fds);
             FD_SET(cur_domain_socket_fd, write_fds);
             FD_SET(cur_domain_socket_fd, except_fds);
         }
@@ -340,7 +340,7 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
         if (FD_ISSET(cur_mail_domain->socket_fd, write_fds))
         {
             log_i("Socket %d of %s domain is in write_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-            handle_write_socket(cur_mail_domain);
+            handle_write_socket(cur_mail_domain, read_fds);
         }
 
         if (FD_ISSET(cur_mail_domain->socket_fd, except_fds))
@@ -352,17 +352,16 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
 }
 
 // Обрабатывает почтовый домен в случае, когда его сокет находится в write_fds
-void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain)
+void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds)
 {
     switch (cur_mail_domain->state)
     {
     case READY:
         printf("READY WRITE_FDS \n");
-        //char *msg = read_msg_file((*cur_mail_domain.mails_list).val);
-        //char *email_new_name = str_replace((*cur_mail_domain->mails_list).val, "new", "cur");
-        //printf("ENTRY NEW NAME %s\n", email_new_name);
-        cur_mail_domain->state = MAIL_FROM_MSG;
-
+        cur_mail_domain->buffer = read_msg_file(cur_mail_domain->mails_list->val);
+        //printf("READ MSG %s\n", cur_mail_domain->buffer);
+        char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
+        printf("ENTRY NEW NAME %s\n", email_new_name);
         // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
         // if (ret == 0)
         //     printf("File renamed successfully\n");
@@ -370,7 +369,8 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain)
         //     printf("Error: unable to rename the file\n");
 
         // remove_first(&cur_mail_domain.mails_list);
-        //send_helo(cur_mail_domain.socket_fd);
+        send_helo(cur_mail_domain->socket_fd);
+        FD_SET(cur_mail_domain->socket_fd, read_fds);
         break;
 
     case MAIL_FROM_MSG:
@@ -412,7 +412,7 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain)
     {
     case READY:
         log_i("%s", "READY READ_FDS \n");
-        //read response
+        get_server_response_code(cur_mail_domain->socket_fd);
         cur_mail_domain->state = MAIL_FROM_MSG;
         break;
 
@@ -456,6 +456,24 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
+
+// int build_fd_sets(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
+// {
+//     FD_ZERO(read_fds);
+//     FD_SET(STDIN_FILENO, read_fds);
+//     FD_SET(cur_mail_domain->socket_fd, read_fds);
+
+//     FD_ZERO(write_fds);
+//     // there is smth to send, set up write_fd for server socket
+//     if (cur_mail_domain->sending_buffer > 0)
+//         FD_SET(server->socket, write_fds);
+
+//     FD_ZERO(except_fds);
+//     FD_SET(STDIN_FILENO, except_fds);
+//     FD_SET(server->socket, except_fds);
+
+//     return 0;
+// }
 
 //printf("MQ id : %d \n", cur_proc_mq_id);
 // printf("Data Received is : %s \n", cur_msg.mtext);

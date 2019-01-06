@@ -14,7 +14,6 @@
 #include "../../common/include/string_utils.h"
 #include "../include/client_types.h"
 
-#define INITIAL_SIZE 10
 char *read_msg_file(char *email_path);
 
 #endif
