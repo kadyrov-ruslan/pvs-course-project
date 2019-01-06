@@ -34,8 +34,6 @@ int send_helo(int socket_fd)
     strcat(buf, "\n");
     send_data(buf, 0, socket_fd);
     bzero(buf, MAX_BUF_LEN);
-    read_fd_line(socket_fd, buf, MAX_BUF_LEN);
-    check_server_response_code(buf);
     return 1;
 }
 
@@ -198,10 +196,9 @@ void send_msg_to_server(int socket_fd, char *msg)
     send_data(buf, 1, socket_fd);
 }
 
-//Writes and reads data to/from output socket
+//Writes data to output socket
 void send_data(char *data, int to_read, int socket_fd)
-{
-    //writing the data to the server and printing it to the screen
+{   
     int n = 0;
     n = write(socket_fd, data, strlen(data));
     if (n < 0)
@@ -221,56 +218,71 @@ void send_data(char *data, int to_read, int socket_fd)
     }
 
     //reading messages from the server dynamically
-    if (to_read == 1)
-    {                           //this means we need to read as well from the socket
-        char tmp[INITIAL_SIZE]; //tmp string to store parts of the message
-        int tmp_length = INITIAL_SIZE;
-        int bytes = 0;
-        //initializing buffer
-        buffer = (char *)malloc(INITIAL_SIZE);
-        length = INITIAL_SIZE;
-        bzero(buffer, length);
-        bzero(tmp, tmp_length);
-        while (1)
-        {
-            //reading data
-            bzero(tmp, tmp_length);
-            bytes += read(socket_fd, tmp, tmp_length - 1); //it reads length-1 to save space for '\0'.
-            if (bytes < 0)
-            {
-                printf("%s\n", strerror(errno));
-                exit(0);
-            }
-            //checking if the buffer has enough length to contain the part of the message
-            if (bytes < length)
-                strcat(buffer, tmp);
+    // if (to_read == 1)
+    // {                           //this means we need to read as well from the socket
+    //     char tmp[INITIAL_SIZE]; //tmp string to store parts of the message
+    //     int tmp_length = INITIAL_SIZE;
+    //     int bytes = 0;
+    //     //initializing buffer
+    //     buffer = (char *)malloc(INITIAL_SIZE);
+    //     length = INITIAL_SIZE;
+    //     bzero(buffer, length);
+    //     bzero(tmp, tmp_length);
+    //     while (1)
+    //     {
+    //         //reading data
+    //         bzero(tmp, tmp_length);
+    //         bytes += read(socket_fd, tmp, tmp_length - 1); //it reads length-1 to save space for '\0'.
+    //         if (bytes < 0)
+    //         {
+    //             printf("%s\n", strerror(errno));
+    //             exit(0);
+    //         }
+    //         //checking if the buffer has enough length to contain the part of the message
+    //         if (bytes < length)
+    //             strcat(buffer, tmp);
 
-            //checking if the buffer does not has enough length to contain the part of the message
-            //therefore it need to be realloced
-            if (bytes >= length)
-            {
-                length = bytes;
-                buffer = (char *)realloc(buffer, length + 1);
-                strcat(buffer, tmp);
-            }
+    //         //checking if the buffer does not has enough length to contain the part of the message
+    //         //therefore it need to be realloced
+    //         if (bytes >= length)
+    //         {
+    //             length = bytes;
+    //             buffer = (char *)realloc(buffer, length + 1);
+    //             strcat(buffer, tmp);
+    //         }
 
-            //checking if we reached the suffix of the server
-            if (strstr(buffer, suffix) != NULL)
-                break;
-        }
-        //checking if code is valid
-        if (strcmp(data, "DATA\n") != 0)
-            check_server_response_code(buffer);
-        //printing the message and freeing the buffer
-        printf("%s", s);
-        printf("%s\n", buffer);
-        free(buffer);
-    }
+    //         //checking if we reached the suffix of the server
+    //         if (strstr(buffer, suffix) != NULL)
+    //             break;
+    //     }
+    //     //checking if code is valid
+    //     if (strcmp(data, "DATA\n") != 0)
+    //         check_server_response_code(buffer);
+    //     //printing the message and freeing the buffer
+    //     printf("%s", s);
+    //     printf("%s\n", buffer);
+    //     free(buffer);
+    // }
 }
 
 //Gets code of response msg
 void check_server_response_code(char *buf)
 {
+    char server_returned_code[4] = "   ";
+    memcpy(server_returned_code, buf, strlen(server_returned_code));
+    int code = 0;
+    code = atoi(server_returned_code);
+    if (code < 200 || code > 300)
+    {
+        printf("code number:%d\n", code);
+        printf("ERROR:%s\n", buf);
+        exit(0);
+    }
+}
+
+void get_server_response_code(int socket_fd)
+{
+    read_fd_line(socket_fd, buf, MAX_BUF_LEN);
     char server_returned_code[4] = "   ";
     memcpy(server_returned_code, buf, strlen(server_returned_code));
     int code = 0;

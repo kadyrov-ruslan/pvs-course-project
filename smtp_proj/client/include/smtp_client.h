@@ -16,6 +16,7 @@
 #include "../include/msg.h"
 
 #define MAX_BUF_LEN 1024
+#define INITIAL_SIZE 10
 
 char s[3];    //string to store 's: '
 char c[3];    //string to store 'c: '
@@ -39,5 +40,6 @@ void get_suffix(char *buf);
 void send_msg_to_server(int socket_fd, char *msg);
 void send_data(char *data, int toRead, int socket_fd);
 void check_server_response_code(char *buf);
+void get_server_response_code(int socket_fd);
 
 #endif
