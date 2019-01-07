@@ -47,6 +47,7 @@ int send_mail_from(int socket_fd, char *msg)
     token = strtok(msg, line);
     strcat(buf, token);
     strcat(buf, ">\n");
+    printf("SEND MAIL FROM is : %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -62,6 +63,7 @@ int send_rcpt_to(int socket_fd, char *msg)
     strcat(buf, token);
     strcat(buf, ">\n");
     printf("%s\n", buf);
+    printf("SEND RCPT TO is : %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -72,6 +74,7 @@ int send_data_msg(int socket_fd)
     bzero(buf, MAX_BUF_LEN);
     strcpy(buf, "DATA\n");
     printf("%s\n", buf);
+    printf("SEND DATA MSG is : %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -280,17 +283,30 @@ void check_server_response_code(char *buf)
     }
 }
 
-void get_server_response_code(int socket_fd)
+int get_server_response_code(int socket_fd)
 {
     read_fd_line(socket_fd, buf, MAX_BUF_LEN);
     char server_returned_code[4] = "   ";
     memcpy(server_returned_code, buf, strlen(server_returned_code));
     int code = 0;
     code = atoi(server_returned_code);
-    if (code < 200 || code > 300)
+    return code;
+}
+
+//reads a line from fd to a char array
+int read_fd_line(int fd, char *line, int lim)
+{
+    int i;
+    char c;
+
+    i = 0;
+    while (--lim > 0 && read(fd, &c, 1) > 0 && c != '\n' && c != '\0')
     {
-        printf("code number:%d\n", code);
-        printf("ERROR:%s\n", buf);
-        exit(0);
+        line[i++] = c;
     }
+    if (c == '\n')
+        line[i++] = c;
+    line[i] = '\0';
+    log_i("Socket %d SERVER RESPONSE %s", fd, line);
+    return i;
 }
