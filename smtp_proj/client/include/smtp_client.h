@@ -45,4 +45,8 @@ int get_server_response_code(int socket_fd);
 
 int read_fd_line(int fd, char *line, int lim);
 
+
+
+void send_body_to_server(int socket_fd, char *msg);
+
 #endif
