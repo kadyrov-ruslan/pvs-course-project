@@ -103,15 +103,16 @@ int send_headers(int socket_fd)
 // Отправляет тело сообщения почтовому серверу
 int send_msg_body(int socket_fd)
 {
-    // char *token;
-    // const char line[3] = "\n";
-    // while (token != NULL)
-    // {
-    //     printf("SEND TOKEN: %s \n", buf);
-    //     send_data(token, 0, socket_fd);
-    //     printf("\n");
-    //     token = strtok(NULL, line);
-    // }
+    printf("SEND MSG BODY FUNC: %s \n", buf);
+    char *token;
+    const char line[3] = "\n";
+    while (token != NULL)
+    {
+        printf("SEND TOKEN: %s \n", buf);
+        send_data(token, 0, socket_fd);
+        printf("\n");
+        token = strtok(NULL, line);
+    }
 
     //sending point to end body
     send_data("\r\n.\r\n", 1, socket_fd);
@@ -212,63 +213,6 @@ void send_data(char *data, int to_read, int socket_fd)
         printf("%s\n", strerror(errno));
         exit(0);
     }
-    if (strcmp(data, "\r\n.\r\n") == 0)
-    {
-        //printf("%s", c);
-        //printf("%s\n\n", ".");
-    }
-    else
-    {
-        //printf("%s", c);
-        //printf("%s\n", data);
-    }
-
-    //reading messages from the server dynamically
-    // if (to_read == 1)
-    // {                           //this means we need to read as well from the socket
-    //     char tmp[INITIAL_SIZE]; //tmp string to store parts of the message
-    //     int tmp_length = INITIAL_SIZE;
-    //     int bytes = 0;
-    //     //initializing buffer
-    //     buffer = (char *)malloc(INITIAL_SIZE);
-    //     length = INITIAL_SIZE;
-    //     bzero(buffer, length);
-    //     bzero(tmp, tmp_length);
-    //     while (1)
-    //     {
-    //         //reading data
-    //         bzero(tmp, tmp_length);
-    //         bytes += read(socket_fd, tmp, tmp_length - 1); //it reads length-1 to save space for '\0'.
-    //         if (bytes < 0)
-    //         {
-    //             printf("%s\n", strerror(errno));
-    //             exit(0);
-    //         }
-    //         //checking if the buffer has enough length to contain the part of the message
-    //         if (bytes < length)
-    //             strcat(buffer, tmp);
-
-    //         //checking if the buffer does not has enough length to contain the part of the message
-    //         //therefore it need to be realloced
-    //         if (bytes >= length)
-    //         {
-    //             length = bytes;
-    //             buffer = (char *)realloc(buffer, length + 1);
-    //             strcat(buffer, tmp);
-    //         }
-
-    //         //checking if we reached the suffix of the server
-    //         if (strstr(buffer, suffix) != NULL)
-    //             break;
-    //     }
-    //     //checking if code is valid
-    //     if (strcmp(data, "DATA\n") != 0)
-    //         check_server_response_code(buffer);
-    //     //printing the message and freeing the buffer
-    //     printf("%s", s);
-    //     printf("%s\n", buffer);
-    //     free(buffer);
-    // }
 }
 
 //Gets code of response msg
@@ -312,4 +256,39 @@ int read_fd_line(int fd, char *line, int lim)
     line[i] = '\0';
     log_i("Socket %d SERVER RESPONSE %s", fd, line);
     return i;
+}
+
+
+
+void send_body_to_server(int socket_fd, char *msg)
+{
+    char buf[MAX_BUF_LEN];
+    char *token;
+    const char line[3] = "\n";
+
+    //sending DATA
+    bzero(buf, MAX_BUF_LEN);
+    printf("sending the body \n");
+    //sending the body
+    token = strtok(NULL, line);
+    //sending the headers
+    while (token != NULL)
+    {
+        bzero(buf, MAX_BUF_LEN);
+        strcpy(buf, token);
+        strcat(buf, "\n");
+        //send_data(buf, 0, socket_fd);
+        token = strtok(NULL, line);
+    }
+    printf("sending the msg body \n");
+    //sending the msg body
+    while (token != NULL)
+    {
+        send_data(token, 0, socket_fd);
+        printf("\n");
+        token = strtok(NULL, line);
+    }
+
+    //sending point to end body
+    send_data("\r\n.\r\n", 1, socket_fd);
 }

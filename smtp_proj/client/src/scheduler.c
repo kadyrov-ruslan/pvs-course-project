@@ -398,7 +398,7 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
 
     case BODY_MSG:
         log_i("Socket %d of %s domain is in BODY_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_msg_body(cur_mail_domain->socket_fd);
+        send_body_to_server(cur_mail_domain->socket_fd, cur_mail_domain->buffer);
         FD_CLR(cur_mail_domain->socket_fd, write_fds);
         FD_SET(cur_mail_domain->socket_fd, read_fds);
         break;
@@ -424,7 +424,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
@@ -441,7 +440,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
@@ -458,7 +456,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
@@ -475,7 +472,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
@@ -492,7 +488,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
@@ -509,7 +504,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
@@ -526,7 +520,6 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         {
             printf("code number:%d\n", response_code);
             printf("ERROR:%s\n", buf);
-            //exit(0);
         }
         else
         {
