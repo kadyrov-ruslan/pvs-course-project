@@ -6,9 +6,6 @@
 #include <sys/msg.h>
 #include "list.h"
 
-#define SENDER_MAXSIZE 128
-#define DATA_MAXSIZE 512
-
 typedef enum mail_process_state
 {
     READY,
@@ -22,12 +19,6 @@ typedef enum mail_process_state
     NONE
 } mail_process_state;
 
-typedef struct message_t
-{
-    char sender[SENDER_MAXSIZE];
-    char data[DATA_MAXSIZE];
-} message_t;
-
 //Описывает один почтовый домен
 //Сетевая информация, сокет и число писем
 struct mail_domain_dscrptr
@@ -39,17 +30,6 @@ struct mail_domain_dscrptr
     struct node_t *mails_list;
     mail_process_state state;
     char *buffer;
-    /* Buffered sending message.
-    * 
-   * In case we doesn't send whole message per one call send().
-   * And current_sending_byte is a pointer to the part of data that will be send next call.
-   */
-    message_t sending_buffer;
-    size_t current_sending_byte;
-
-    /* The same for the receiving message. */
-    message_t receiving_buffer;
-    size_t current_receiving_byte;
 };
 
 struct mail_process_dscrptr

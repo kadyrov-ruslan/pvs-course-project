@@ -76,7 +76,7 @@ void HELO_SENT_SUCCESS(void)
 
 void MAIL_FROM_SENT_SUCCESS(void)
 {
-    init_suite();
+    //init_suite();
     send_mail_from(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].buffer);
     int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd);
     CU_ASSERT(response_code > 200 && response_code < 400);
@@ -93,7 +93,7 @@ void RCPT_TO_SENT_SUCCESS(void)
 
 void DATA_MSG_SENT_SUCCESS(void)
 {
-    init_suite();
+    //init_suite();
     send_data_msg(mock_dscrptrs[0].socket_fd);
     int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd);
     CU_ASSERT(response_code > 200 && response_code < 400);
@@ -117,10 +117,10 @@ int main(void)
     }
 
     /* add the tests to the suite */
-    if ((NULL == CU_add_test(pSuite, "HELO_SENT_SUCCESSFULLY", HELO_SENT_SUCCESS))||
-        (NULL == CU_add_test(pSuite, "MAIL_FROM_SENT_SUCCESSFULLY", MAIL_FROM_SENT_SUCCESS))||
-        (NULL == CU_add_test(pSuite, "RCPT_TO_SENT_SUCCESSFULLY", RCPT_TO_SENT_SUCCESS))||
-        (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESSFULLY", DATA_MSG_SENT_SUCCESS)))
+    if (/*(NULL == CU_add_test(pSuite, "HELO_SENT_SUCCESSFULLY", HELO_SENT_SUCCESS))||*/
+        (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESS", DATA_MSG_SENT_SUCCESS))
+        /*(NULL == CU_add_test(pSuite, "RCPT_TO_SENT_SUCCESSFULLY", RCPT_TO_SENT_SUCCESS))||
+        (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESSFULLY", DATA_MSG_SENT_SUCCESS))*/)
     {
         CU_cleanup_registry();
         return CU_get_error();
