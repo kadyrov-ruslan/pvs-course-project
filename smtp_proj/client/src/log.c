@@ -40,6 +40,7 @@ int save_log(char *message, char *logs_dir)
         strcat(full_log_msg, " ");
         strcat(full_log_msg, message);
         fputs(full_log_msg, fp);
+        free(full_log_msg);
         fclose(fp);
     }
 

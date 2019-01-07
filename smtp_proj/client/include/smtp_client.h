@@ -9,24 +9,19 @@
 #include <resolv.h>
 #include <assert.h>
 
-#include "../include/map.h"
-#include "../include/log.h"
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
+#include "../include/map.h"
+#include "../include/log.h"
 #include "../include/client_types.h"
 #include "../include/msg.h"
 
 #define MAX_BUF_LEN 1024
 #define INITIAL_SIZE 10
 
-char s[3];    //string to store 's: '
-char c[3];    //string to store 'c: '
-char *suffix; //string to store server suffix
-
 char buf[MAX_BUF_LEN];
-
-char *buffer;                 //dynamically allocated char array to get messages from the server
-int length;                   //current size of buffer
+char *buffer;                       //dynamically allocated char array to get messages from the server
+int length;                         //current size of buffer
 char client_host_name[MAX_BUF_LEN]; //string to store my host name
 
 int send_helo(int socket_fd);
@@ -37,16 +32,10 @@ int send_headers(int socket_fd);
 int send_msg_body(int socket_fd);
 int send_quit(int socket_fd);
 
-void get_suffix(char *buf);
-void send_msg_to_server(int socket_fd, char *msg);
 void send_data(char *data, int toRead, int socket_fd);
-void check_server_response_code(char *buf);
 int get_server_response_code(int socket_fd);
 
 int read_fd_line(int fd, char *line, int lim);
-
-
-
 void send_body_to_server(int socket_fd, char *msg);
 
 #endif
