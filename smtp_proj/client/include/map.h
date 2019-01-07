@@ -18,7 +18,8 @@ typedef enum mail_process_state
     DATA_MSG,
     HEADERS_MSG,
     BODY_MSG,
-    QUIT_MSG
+    QUIT_MSG,
+    NONE
 } mail_process_state;
 
 typedef struct message_t
