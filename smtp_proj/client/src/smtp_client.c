@@ -93,6 +93,7 @@ int send_headers(int socket_fd)
         bzero(buf, MAX_BUF_LEN);
         strcpy(buf, token);
         strcat(buf, "\n");
+        printf("SEND HEADERS: %s \n", buf);
         send_data(buf, 0, socket_fd);
         token = strtok(NULL, line);
     }
@@ -102,14 +103,15 @@ int send_headers(int socket_fd)
 // Отправляет тело сообщения почтовому серверу
 int send_msg_body(int socket_fd)
 {
-    char *token;
-    const char line[3] = "\n";
-    while (token != NULL)
-    {
-        send_data(token, 0, socket_fd);
-        printf("\n");
-        token = strtok(NULL, line);
-    }
+    // char *token;
+    // const char line[3] = "\n";
+    // while (token != NULL)
+    // {
+    //     printf("SEND TOKEN: %s \n", buf);
+    //     send_data(token, 0, socket_fd);
+    //     printf("\n");
+    //     token = strtok(NULL, line);
+    // }
 
     //sending point to end body
     send_data("\r\n.\r\n", 1, socket_fd);
@@ -121,6 +123,7 @@ int send_quit(int socket_fd)
 {
     bzero(buf, MAX_BUF_LEN);
     strcpy(buf, "QUIT\n");
+    printf("SEND QUIT: %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -211,13 +214,13 @@ void send_data(char *data, int to_read, int socket_fd)
     }
     if (strcmp(data, "\r\n.\r\n") == 0)
     {
-        printf("%s", c);
-        printf("%s\n\n", ".");
+        //printf("%s", c);
+        //printf("%s\n\n", ".");
     }
     else
     {
-        printf("%s", c);
-        printf("%s\n", data);
+        //printf("%s", c);
+        //printf("%s\n", data);
     }
 
     //reading messages from the server dynamically
