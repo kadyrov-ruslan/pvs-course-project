@@ -61,22 +61,3 @@ char **str_split(char *a_str, const char a_delim)
 
     return result;
 }
-
-//reads a line from fd to a char array
-int read_fd_line(int fd, char *line, int lim)
-{
-    int i;
-    char c;
-
-    i = 0;
-    while (--lim > 0 && read(fd, &c, 1) > 0 && c != '\n' && c != '\0')
-    {
-        line[i++] = c;
-    }
-    if (c == '\n')
-        line[i++] = c;
-    line[i] = '\0';
-
-    printf("SERVER RESPONSE %s \n", line);
-    return i;
-}

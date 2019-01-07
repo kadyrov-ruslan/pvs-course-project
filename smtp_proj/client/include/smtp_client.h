@@ -10,6 +10,7 @@
 #include <assert.h>
 
 #include "../include/map.h"
+#include "../include/log.h"
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
 #include "../include/client_types.h"
@@ -40,6 +41,8 @@ void get_suffix(char *buf);
 void send_msg_to_server(int socket_fd, char *msg);
 void send_data(char *data, int toRead, int socket_fd);
 void check_server_response_code(char *buf);
-void get_server_response_code(int socket_fd);
+int get_server_response_code(int socket_fd);
+
+int read_fd_line(int fd, char *line, int lim);
 
 #endif
