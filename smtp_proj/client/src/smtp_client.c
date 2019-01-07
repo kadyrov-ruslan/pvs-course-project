@@ -33,6 +33,7 @@ int send_helo(int socket_fd)
     strcat(buf, client_host_name);
     strcat(buf, "\n");
     send_data(buf, 0, socket_fd);
+    printf("SEND HELO: %s \n", buf);
     bzero(buf, MAX_BUF_LEN);
     return 1;
 }
@@ -47,7 +48,7 @@ int send_mail_from(int socket_fd, char *msg)
     token = strtok(msg, line);
     strcat(buf, token);
     strcat(buf, ">\n");
-    printf("SEND MAIL FROM is : %s \n", buf);
+    //printf("SEND MAIL FROM is : %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -62,8 +63,7 @@ int send_rcpt_to(int socket_fd, char *msg)
     token = strtok(NULL, line);
     strcat(buf, token);
     strcat(buf, ">\n");
-    printf("%s\n", buf);
-    printf("SEND RCPT TO is : %s \n", buf);
+    //printf("SEND RCPT TO is : %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -73,8 +73,7 @@ int send_data_msg(int socket_fd)
 {
     bzero(buf, MAX_BUF_LEN);
     strcpy(buf, "DATA\n");
-    printf("%s\n", buf);
-    printf("SEND DATA MSG is : %s \n", buf);
+    //printf("SEND DATA MSG is : %s \n", buf);
     send_data(buf, 1, socket_fd);
     return 1;
 }
@@ -237,6 +236,7 @@ int get_server_response_code(int socket_fd)
     memcpy(server_returned_code, buf, strlen(server_returned_code));
     int code = 0;
     code = atoi(server_returned_code);
+    //printf("code number:%d\n", code);
     return code;
 }
 
@@ -254,7 +254,8 @@ int read_fd_line(int fd, char *line, int lim)
     if (c == '\n')
         line[i++] = c;
     line[i] = '\0';
-    log_i("Socket %d SERVER RESPONSE %s", fd, line);
+    //printf("Socket %d SERVER RESPONSE %s \n", fd, line);
+    //log_i("Socket %d SERVER RESPONSE %s", fd, line);
     return i;
 }
 
