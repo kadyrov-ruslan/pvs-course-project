@@ -57,7 +57,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
             memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
         }
 
-        wait_for(30);
+        wait_for(45);
     }
     return 1;
 }
@@ -90,21 +90,20 @@ int child_process_worker_start(int proc_idx)
         int maxfd = 0;
         for (int i = 0; i < ready_domains_count; i++)
         {
-            struct mail_domain_dscrptr cur_domain = mail_domains_dscrptrs[i];
-            printf("DOMAIN STATUS %d \n", cur_domain.state);
-            if (cur_domain.socket_fd > maxfd)
-                maxfd = cur_domain.socket_fd;
+            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];           
+            if (cur_domain->socket_fd > maxfd)
+                maxfd = cur_domain->socket_fd;
         }
 
         // Проверяем, есть ли в каждом из доменов необработанные письма
         for (int i = 0; i < ready_domains_count; i++)
-        {
+        {   
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
+            log_i("DOMAIN STATUS %d \n", cur_domain->state);
             if (count(cur_domain->mails_list) > 0)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
-
-        wait_for(2);
+        wait_for(1);
     }
 
     return 1;
@@ -319,7 +318,10 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
 void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
                          fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
 {
+    //log_i("maxfd %d \n", maxfd);
+
     int activity = select(maxfd + 1, read_fds, write_fds, except_fds, NULL);
+    //log_i("Acitivity %d \n", activity);
     switch (activity)
     {
     case -1:
@@ -351,65 +353,55 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
     switch (cur_mail_domain->state)
     {
     case READY:
-        log_i("Socket %d of %s domain is in READY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        log_i("Socket %d of %s domain is in READY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);       
+        send_helo(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        break;
+
+    case MAIL_FROM_MSG:
+        log_i("Socket %d of %s domain is in MAIL_FROM_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         cur_mail_domain->buffer = read_msg_file(cur_mail_domain->mails_list->val);
         //printf("READ MSG %s\n", cur_mail_domain->buffer);
-        char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
-        printf("ENTRY NEW NAME %s\n", email_new_name);
+        //char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
+        //printf("ENTRY NEW NAME %s\n", email_new_name);
         // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
         // if (ret == 0)
         //     printf("File renamed successfully\n");
         // else
         //     printf("Error: unable to rename the file\n");
 
-        // remove_first(&cur_mail_domain.mails_list);
-        send_helo(cur_mail_domain->socket_fd);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
-        break;
-
-    case MAIL_FROM_MSG:
-        log_i("Socket %d of %s domain is in MAIL_FROM_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_mail_from(cur_mail_domain->socket_fd, cur_mail_domain->buffer);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
+        send_mail_from(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
         break;
 
     case RCPT_TO_MSG:
         log_i("Socket %d of %s domain is in RCPT_TO_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_rcpt_to(cur_mail_domain->socket_fd, cur_mail_domain->buffer);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
+        send_rcpt_to(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
         break;
 
     case DATA_MSG:
         log_i("Socket %d of %s domain is in DATA_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_data_msg(cur_mail_domain->socket_fd);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
+        send_data_msg(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
     case HEADERS_MSG:
         log_i("Socket %d of %s domain is in HEADERS_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_headers(cur_mail_domain->socket_fd);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
+        send_headers(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
     case BODY_MSG:
         log_i("Socket %d of %s domain is in BODY_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_body_to_server(cur_mail_domain->socket_fd, cur_mail_domain->buffer);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
+        send_msg_body(cur_mail_domain->socket_fd);
         break;
 
+    case QUIT_MSG:
+        log_i("Socket %d of %s domain is in QUIT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        send_quit(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        break;
     default:
-        log_i("Socket %d of %s domain is in DEFAULT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_quit(cur_mail_domain->socket_fd);
-        FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        FD_SET(cur_mail_domain->socket_fd, read_fds);
         break;
     }
+
+    FD_CLR(cur_mail_domain->socket_fd, write_fds);
+    FD_SET(cur_mail_domain->socket_fd, read_fds);
 }
 
 // Обрабатывает почтовый домен в случае, когда его сокет находится в read_fds
@@ -419,11 +411,11 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
     {
     case READY:
         log_i("Socket %d of %s domain is in READY READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        int response_code = get_server_response_code(cur_mail_domain->socket_fd);
-        if (response_code < 200 || response_code > 300)
+        int response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
+        if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
@@ -435,11 +427,11 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     case MAIL_FROM_MSG:
         log_i("Socket %d of %s domain is in MAIL_FROM_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd);
-        if (response_code < 200 || response_code > 300)
+        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
+        if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
@@ -451,11 +443,11 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     case RCPT_TO_MSG:
         log_i("Socket %d of %s domain is in RCPT_TO_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd);
-        if (response_code < 200 || response_code > 300)
+        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
+        if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
@@ -467,11 +459,11 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     case DATA_MSG:
         log_i("Socket %d of %s domain is in DATA_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd);
-        if (response_code < 200 || response_code > 300)
+        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
+        if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
@@ -483,11 +475,11 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     case HEADERS_MSG:
         log_i("Socket %d of %s domain is in HEADERS_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd);
+        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
         if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
@@ -499,15 +491,25 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     case BODY_MSG:
         log_i("Socket %d of %s domain is in BODY_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd);
+        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
         if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
-            cur_mail_domain->state = QUIT_MSG;
+            remove_first(&cur_mail_domain->mails_list);
+            if (count(cur_mail_domain->mails_list) > 0)
+            {
+                 printf("БОЛЬШЕ НУЛЯ \n");
+                 cur_mail_domain->state = MAIL_FROM_MSG;
+            }
+            else
+            {
+                cur_mail_domain->state = QUIT_MSG;
+            }
+
             FD_CLR(cur_mail_domain->socket_fd, read_fds);
             FD_SET(cur_mail_domain->socket_fd, write_fds);
         }
@@ -515,17 +517,18 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     default:
         log_i("Socket %d of %s domain is in DEFAULT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd);
+        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
         if (response_code < 200 || response_code > 400)
         {
             printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", buf);
+            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
-        {
-            cur_mail_domain->state = NONE;
+        {            
+            cur_mail_domain->state = READY;
+           
             FD_CLR(cur_mail_domain->socket_fd, read_fds);
-            FD_CLR(cur_mail_domain->socket_fd, write_fds);
+            FD_SET(cur_mail_domain->socket_fd, write_fds);
         }
         break;
     }

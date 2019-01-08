@@ -6,17 +6,17 @@
 #include <sys/msg.h>
 #include "list.h"
 
+#define MAX_BUF_LEN 1024
+
 typedef enum mail_process_state
 {
     READY,
-    HELO_MSG,
     MAIL_FROM_MSG,
     RCPT_TO_MSG,
     DATA_MSG,
     HEADERS_MSG,
     BODY_MSG,
-    QUIT_MSG,
-    NONE
+    QUIT_MSG
 } mail_process_state;
 
 //Описывает один почтовый домен
@@ -30,6 +30,9 @@ struct mail_domain_dscrptr
     struct node_t *mails_list;
     mail_process_state state;
     char *buffer;
+
+    char request_buf[MAX_BUF_LEN];   // Буфер для отправляемых данных
+    char response_buf[MAX_BUF_LEN];  // Буфер для ответа от сервера
 };
 
 struct mail_process_dscrptr
