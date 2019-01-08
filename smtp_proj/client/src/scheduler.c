@@ -99,7 +99,7 @@ int child_process_worker_start(int proc_idx)
         for (int i = 0; i < ready_domains_count; i++)
         {   
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            log_i("DOMAIN STATUS %d \n", cur_domain->state);
+            log_i("DOMAIN STATUS %d", cur_domain->state);
             if (count(cur_domain->mails_list) > 0)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
@@ -499,14 +499,17 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         }
         else
         {
+             printf("REMOVING FIRST\n");
             remove_first(&cur_mail_domain->mails_list);
+            printf("FIRST REMOVED\n");
             if (count(cur_mail_domain->mails_list) > 0)
             {
-                 printf("БОЛЬШЕ НУЛЯ \n");
+                printf("MORE THAN 0\n");
                  cur_mail_domain->state = MAIL_FROM_MSG;
             }
             else
             {
+                printf("MORE THAN 0\n");
                 cur_mail_domain->state = QUIT_MSG;
             }
 

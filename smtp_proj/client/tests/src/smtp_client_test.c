@@ -69,36 +69,49 @@ int clean_suite(void) { return 0; }
 
 void HELO_SENT_SUCCESS(void)
 {
-    send_helo(mock_dscrptrs[0].socket_fd);
-    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd);
+    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
+    send_helo(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].request_buf);
+    response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
     CU_ASSERT(response_code > 200 && response_code < 400);
 }
 
 void MAIL_FROM_SENT_SUCCESS(void)
 {
-    //init_suite();
-    send_mail_from(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].buffer);
-    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd);
+    send_mail_from(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].buffer, mock_dscrptrs[0].request_buf);
+    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
     CU_ASSERT(response_code > 200 && response_code < 400);
 }
 
 void RCPT_TO_SENT_SUCCESS(void)
 {
-    init_suite();
-    send_mail_from(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].buffer);
-    send_rcpt_to(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].buffer);
-    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd);
+    send_rcpt_to(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].buffer, mock_dscrptrs[0].request_buf);
+    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
     CU_ASSERT(response_code > 200 && response_code < 400);
 }
 
 void DATA_MSG_SENT_SUCCESS(void)
 {
-    //init_suite();
-    send_data_msg(mock_dscrptrs[0].socket_fd);
-    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd);
+    send_data_msg(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].request_buf);
+    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
     CU_ASSERT(response_code > 200 && response_code < 400);
 }
 
+void MAIL_BODY_SENT_SUCCESS(void)
+{
+    send_headers(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].request_buf);
+    //int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
+    //CU_ASSERT(response_code > 200 && response_code < 400);
+    send_msg_body(mock_dscrptrs[0].socket_fd);
+    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
+    CU_ASSERT(response_code > 200 && response_code < 400);
+}
+
+void QUIT_SENT_SUCCESS(void)
+{
+    send_quit(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].request_buf);
+    int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
+    CU_ASSERT(response_code > 200 && response_code < 400);
+}
 
 int main(void)
 {
@@ -117,10 +130,12 @@ int main(void)
     }
 
     /* add the tests to the suite */
-    if (/*(NULL == CU_add_test(pSuite, "HELO_SENT_SUCCESSFULLY", HELO_SENT_SUCCESS))||*/
-        (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESS", DATA_MSG_SENT_SUCCESS))
-        /*(NULL == CU_add_test(pSuite, "RCPT_TO_SENT_SUCCESSFULLY", RCPT_TO_SENT_SUCCESS))||
-        (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESSFULLY", DATA_MSG_SENT_SUCCESS))*/)
+    if ((NULL == CU_add_test(pSuite, "HELO_SENT_SUCCESSFULLY", HELO_SENT_SUCCESS))||
+        (NULL == CU_add_test(pSuite, "MAIL_FROM_SENT_SUCCESSFULLY", MAIL_FROM_SENT_SUCCESS)) ||
+        (NULL == CU_add_test(pSuite, "RCPT_TO_SENT_SUCCESSFULLY", RCPT_TO_SENT_SUCCESS))||
+        (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESSFULLY", DATA_MSG_SENT_SUCCESS))||
+        (NULL == CU_add_test(pSuite, "MAIL_BODY_SENT_SUCCESSFULLY", MAIL_BODY_SENT_SUCCESS)) ||
+        (NULL == CU_add_test(pSuite, "QUIT_SENT_SUCCESS", QUIT_SENT_SUCCESS)))
     {
         CU_cleanup_registry();
         return CU_get_error();
