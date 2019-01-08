@@ -68,11 +68,11 @@ int send_headers(int socket_fd, char *request_buf)
         bzero(request_buf, MAX_BUF_LEN);
         strcpy(request_buf, token);
         strcat(request_buf, "\n");
-        //log_i("Sending EMAIL BODY PART: %s \n", request_buf);
         send_data(request_buf, 0, socket_fd);
         token = strtok(NULL, line);
     }
     bzero(request_buf, MAX_BUF_LEN);
+    send_data("\r\n.\r\n", 1, socket_fd);
     return 1;
 }
 
@@ -108,6 +108,7 @@ int send_quit(int socket_fd, char *request_buf)
 void send_data(char *data, int to_read, int socket_fd)
 {
     int n = 0;
+    printf("SENDING DATA %s \n", data);
     n = write(socket_fd, data, strlen(data));
     if (n < 0)
     {
@@ -142,7 +143,7 @@ int read_fd_line(int fd, char *line, int lim)
     if (c == '\n')
         line[i++] = c;
     line[i] = '\0';
-    //printf("Socket %d SERVER RESPONSE %s \n", fd, line);
+    printf("Socket %d SERVER RESPONSE %s \n", fd, line);
     log_i("Socket %d SERVER RESPONSE %s", fd, line);
     return i;
 }
