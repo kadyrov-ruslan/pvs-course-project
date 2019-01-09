@@ -104,7 +104,7 @@ int child_process_worker_start(int proc_idx)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
         // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
-        usleep(60000);
+        usleep(100000);
     }
 
     return 1;
@@ -322,7 +322,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             }
             else
             {
-                 mail_domains_dscrptrs[found_domain_num].socket_fd = cur_domain_socket_fd;
+                mail_domains_dscrptrs[found_domain_num].socket_fd = cur_domain_socket_fd;
                 fcntl(cur_domain_socket_fd, F_SETFL, O_NONBLOCK);
                 log_i("Successfully connected to %s ", cur_email_domain);
 

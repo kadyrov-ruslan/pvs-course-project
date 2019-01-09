@@ -69,10 +69,12 @@ int send_headers(int socket_fd, char *request_buf)
         strcpy(request_buf, token);
         strcat(request_buf, "\n");
         send_data(request_buf, 0, socket_fd);
+        //printf("SEND body: %s \n", request_buf);
         token = strtok(NULL, line);
     }
     bzero(request_buf, MAX_BUF_LEN);
-    send_data("\r\n.\r\n", 1, socket_fd);
+    //printf("SEND body: %s \n", "\r\n.\r\n");
+    send_data("\r\n.\r\n", 0, socket_fd);
     return 1;
 }
 

@@ -21,11 +21,6 @@ struct sockaddr_in get_domain_server_info(char *domain_name)
     mail_server.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
     mail_server.sin_port = htons(25); //port 25=SMTP.
     bcopy((char *)mail_info->h_addr_list[0], (char *)&mail_server.sin_addr.s_addr, mail_info->h_length);
-    char *IPbuffer = inet_ntoa(*((struct in_addr *)
-                                     mail_info->h_addr_list[0]));
-
-    printf("Host IP: %s", IPbuffer);
-
     return mail_server;
 }
 
