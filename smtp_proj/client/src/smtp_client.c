@@ -148,31 +148,3 @@ int read_fd_line(int fd, char *line, int lim)
     log_i("Socket %d SERVER RESPONSE %s", fd, line);
     return i;
 }
-
-//todo изменить в send_msg_body
-void send_body_to_server(int socket_fd, char *msg)
-{
-    char buf[MAX_BUF_LEN];
-    char *token;
-    const char line[3] = "\n";
-
-    bzero(buf, MAX_BUF_LEN);
-    token = strtok(NULL, line);
-    while (token != NULL)
-    {
-        bzero(buf, MAX_BUF_LEN);
-        strcpy(buf, token);
-        token = strtok(NULL, line);
-    }
-
-    //printf("sending the msg body \n");
-    //sending the msg body
-    while (token != NULL)
-    {
-        send_data(token, 0, socket_fd);
-        token = strtok(NULL, line);
-    }
-
-    //sending point to end body
-    send_data("\r\n.\r\n", 1, socket_fd);
-}

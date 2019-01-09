@@ -104,7 +104,7 @@ int child_process_worker_start(int proc_idx)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
         // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
-        usleep(50000);
+        usleep(60000);
     }
 
     return 1;
@@ -427,123 +427,73 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
 // Обрабатывает почтовый домен в случае, когда его сокет находится в read_fds
 void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
 {
+    int response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
     switch (cur_mail_domain->state)
     {
     case READY:
         log_i("Socket %d of %s domain is in READY READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        int response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
-        }
-        else
-        {
-            cur_mail_domain->state = HELO_MSG;
-            FD_CLR(cur_mail_domain->socket_fd, read_fds);
-            FD_SET(cur_mail_domain->socket_fd, write_fds);
-        }
+        update_mail_state(response_code, HELO_MSG, cur_mail_domain, read_fds, write_fds);
         break;
+
     case HELO_MSG:
         log_i("Socket %d of %s domain is in READY READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
-        }
-        else
-        {
-            cur_mail_domain->state = MAIL_FROM_MSG;
-            FD_CLR(cur_mail_domain->socket_fd, read_fds);
-            FD_SET(cur_mail_domain->socket_fd, write_fds);
-        }
+        update_mail_state(response_code, MAIL_FROM_MSG, cur_mail_domain, read_fds, write_fds);
         break;
 
     case MAIL_FROM_MSG:
         log_i("Socket %d of %s domain is in MAIL_FROM_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
-        }
-        else
-        {
-            cur_mail_domain->state = RCPT_TO_MSG;
-        }
-        FD_CLR(cur_mail_domain->socket_fd, read_fds);
-        FD_SET(cur_mail_domain->socket_fd, write_fds);
+        update_mail_state(response_code, RCPT_TO_MSG, cur_mail_domain, read_fds, write_fds);
         break;
 
     case RCPT_TO_MSG:
         log_i("Socket %d of %s domain is in RCPT_TO_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
-        }
-        else
-        {
-            cur_mail_domain->state = DATA_MSG;
-            FD_CLR(cur_mail_domain->socket_fd, read_fds);
-            FD_SET(cur_mail_domain->socket_fd, write_fds);
-        }
+        update_mail_state(response_code, DATA_MSG, cur_mail_domain, read_fds, write_fds);
         break;
 
     case DATA_MSG:
         log_i("Socket %d of %s domain is in DATA_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
-        }
-        else
-        {
-            cur_mail_domain->state = BODY_MSG;
-            FD_CLR(cur_mail_domain->socket_fd, read_fds);
-            FD_SET(cur_mail_domain->socket_fd, write_fds);
-        }
+        update_mail_state(response_code, BODY_MSG, cur_mail_domain, read_fds, write_fds);
         break;
 
     case BODY_MSG:
         log_i("Socket %d of %s domain is in BODY_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
-        }
-        else
+        update_mail_state(response_code, READY, cur_mail_domain, read_fds, write_fds);
+        break;
+
+    case QUIT_MSG:
+        log_i("Socket %d of %s domain is in QUIT_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        update_mail_state(response_code, READY, cur_mail_domain, read_fds, write_fds);
+        break;
+    default:
+        break;
+    }
+}
+
+void update_mail_state(int response_code, mail_process_state new_state,
+                       struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
+{
+    if (response_code < 200 || response_code > 400)
+    {
+        printf("code number:%d\n", response_code);
+        printf("ERROR:%s\n", cur_mail_domain->response_buf);
+    }
+    else
+    {
+        if (cur_mail_domain->state == BODY_MSG)
         {
             remove_first(&cur_mail_domain->mails_list);
             if (count(cur_mail_domain->mails_list) > 0)
                 cur_mail_domain->state = MAIL_FROM_MSG;
             else
                 cur_mail_domain->state = QUIT_MSG;
-
-            FD_CLR(cur_mail_domain->socket_fd, read_fds);
-            FD_SET(cur_mail_domain->socket_fd, write_fds);
-        }
-        break;
-
-    default:
-        log_i("Socket %d of %s domain is in DEFAULT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-        if (response_code < 200 || response_code > 400)
-        {
-            printf("code number:%d\n", response_code);
-            printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
         {
-            cur_mail_domain->state = READY;
-            FD_CLR(cur_mail_domain->socket_fd, write_fds);
-            FD_SET(cur_mail_domain->socket_fd, read_fds);
+            cur_mail_domain->state = new_state;
         }
-        break;
+
+        FD_CLR(cur_mail_domain->socket_fd, read_fds);
+        FD_SET(cur_mail_domain->socket_fd, write_fds);
     }
 }
 
