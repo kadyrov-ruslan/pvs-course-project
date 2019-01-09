@@ -125,6 +125,7 @@ int get_server_response_code(int socket_fd, char *response_buf)
     memcpy(server_returned_code, response_buf, strlen(server_returned_code));
     int code = 0;
     code = atoi(server_returned_code);
+    //log_i("Socket %d SERVER code %d", socket_fd, code);
     //printf("code number:%d\n", code);
     return code;
 }

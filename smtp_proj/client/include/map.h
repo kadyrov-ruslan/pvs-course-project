@@ -15,7 +15,6 @@ typedef enum mail_process_state
     MAIL_FROM_MSG,
     RCPT_TO_MSG,
     DATA_MSG,
-    HEADERS_MSG,
     BODY_MSG,
     QUIT_MSG
 } mail_process_state;
