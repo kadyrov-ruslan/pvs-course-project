@@ -108,7 +108,7 @@ int send_quit(int socket_fd, char *request_buf)
 void send_data(char *data, int to_read, int socket_fd)
 {
     int n = 0;
-    printf("SENDING DATA %s \n", data);
+    //printf("SENDING DATA %s \n", data);
     n = write(socket_fd, data, strlen(data));
     if (n < 0)
     {
@@ -143,7 +143,7 @@ int read_fd_line(int fd, char *line, int lim)
     if (c == '\n')
         line[i++] = c;
     line[i] = '\0';
-    printf("Socket %d SERVER RESPONSE %s \n", fd, line);
+    //printf("Socket %d SERVER RESPONSE %s \n", fd, line);
     log_i("Socket %d SERVER RESPONSE %s", fd, line);
     return i;
 }
@@ -164,7 +164,7 @@ void send_body_to_server(int socket_fd, char *msg)
         token = strtok(NULL, line);
     }
 
-    printf("sending the msg body \n");
+    //printf("sending the msg body \n");
     //sending the msg body
     while (token != NULL)
     {

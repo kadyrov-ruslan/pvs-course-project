@@ -11,6 +11,7 @@
 typedef enum mail_process_state
 {
     READY,
+    HELO_MSG,
     MAIL_FROM_MSG,
     RCPT_TO_MSG,
     DATA_MSG,
