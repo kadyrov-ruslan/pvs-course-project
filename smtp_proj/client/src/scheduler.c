@@ -99,11 +99,12 @@ int child_process_worker_start(int proc_idx)
         for (int i = 0; i < ready_domains_count; i++)
         {   
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            log_i("DOMAIN STATUS %d", cur_domain->state);
+            //log_i("DOMAIN STATUS %d", cur_domain->state);
             if (count(cur_domain->mails_list) > 0 || cur_domain->state == QUIT_MSG)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
-        wait_for(1);
+        // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
+        usleep(50000);
     }
 
     return 1;
@@ -261,7 +262,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         strcpy(mail_domains_dscrptrs[ready_domains_count].domain, cur_email_domain);
 
         char *res = get_domain_mx_server_name(cur_email_domain);
-        printf("MX SERVER %s\n", res);
         struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
         cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
         cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
@@ -287,7 +287,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
 
             FD_SET(cur_domain_socket_fd, read_fds);
-            //FD_SET(cur_domain_socket_fd, write_fds);
             FD_SET(cur_domain_socket_fd, except_fds);
         }
 
@@ -328,7 +327,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
                 log_i("Successfully connected to %s ", cur_email_domain);
 
                 FD_SET(cur_domain_socket_fd, read_fds);
-                //FD_SET(cur_domain_socket_fd, write_fds);
                 FD_SET(cur_domain_socket_fd, except_fds);
             }
         }
@@ -409,8 +407,8 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
         send_data_msg(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
-    case HEADERS_MSG:
-        log_i("Socket %d of %s domain is in HEADERS_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    case BODY_MSG:
+        log_i("Socket %d of %s domain is in BODY_MSG WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         send_headers(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
@@ -472,7 +470,7 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         }
         else
         {
-            cur_mail_domain->state = RCPT_TO_MSG;         
+            cur_mail_domain->state = RCPT_TO_MSG;
         }
         FD_CLR(cur_mail_domain->socket_fd, read_fds);
         FD_SET(cur_mail_domain->socket_fd, write_fds);
@@ -504,15 +502,13 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         }
         else
         {
-            cur_mail_domain->state = HEADERS_MSG;
+            cur_mail_domain->state = BODY_MSG;
             FD_CLR(cur_mail_domain->socket_fd, read_fds);
             FD_SET(cur_mail_domain->socket_fd, write_fds);
         }
         break;
 
-
-
-    case HEADERS_MSG:
+    case BODY_MSG:
         log_i("Socket %d of %s domain is in BODY_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
         if (response_code < 200 || response_code > 400)
@@ -522,9 +518,7 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
         }
         else
         {
-            printf("REMOVING FIRST\n");
             remove_first(&cur_mail_domain->mails_list);
-            printf("FIRST REMOVED\n");
             if (count(cur_mail_domain->mails_list) > 0)
                 cur_mail_domain->state = MAIL_FROM_MSG;
             else
@@ -544,9 +538,8 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
             printf("ERROR:%s\n", cur_mail_domain->response_buf);
         }
         else
-        {            
-            cur_mail_domain->state = HELO_MSG;
-           
+        {
+            cur_mail_domain->state = READY;
             FD_CLR(cur_mail_domain->socket_fd, write_fds);
             FD_SET(cur_mail_domain->socket_fd, read_fds);
         }
