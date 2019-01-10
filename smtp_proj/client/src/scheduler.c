@@ -41,7 +41,6 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
         for (int i = 0; i < domains_count; i++)
         {
             int domain_proc_idx = get_mail_proc_idx(domains_mails[i].domain, domains_count, mail_procs);
-            // проверяем, содержится ли домен в одном из процессов
             for (int j = 0; j < domains_mails[i].mails_count; j++)
             {
                 struct queue_msg new_msg;
@@ -59,7 +58,6 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
     return 1;
 }
 
-
 // Возвращает индекс процесса, в который стоит отправить новое письмо на обработку
 int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs)
 {
@@ -71,7 +69,7 @@ int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_
             if (strcmp(domain_name, mail_procs[j].domains[i]) == 0)
             {
                 log_i("Process %d already handles %s domain. Domains count %d", j, domain_name, mail_procs[j].domains_count);
-                return j;   
+                return j;
             }
         }
     }
@@ -123,16 +121,15 @@ int child_process_worker_start(int proc_idx)
         int maxfd = 0;
         for (int i = 0; i < ready_domains_count; i++)
         {
-            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];           
+            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
             if (cur_domain->socket_fd > maxfd)
                 maxfd = cur_domain->socket_fd;
         }
 
         // Проверяем, есть ли в каждом из доменов необработанные письма
         for (int i = 0; i < ready_domains_count; i++)
-        {   
+        {
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            //log_i("DOMAIN STATUS %d", cur_domain->state);
             if (count(cur_domain->mails_list) > 0 || cur_domain->state == QUIT_MSG)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
@@ -232,7 +229,6 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
                                 int last_mail_num = domains_mails[found_domain_num].mails_count;
                                 domains_mails[found_domain_num].mails_paths[last_mail_num] = malloc(strlen(email_full_name));
                                 strcpy(domains_mails[found_domain_num].mails_paths[last_mail_num], email_full_name);
-
                                 domains_mails[found_domain_num].mails_count++;
                             }
                         }
@@ -290,7 +286,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     //Домен не найден - добавляем в массив и биндим новый сокет
     if (found_domain_num < 0)
     {
-        printf("EMAIL NOT EXIST %s\n", cur_email_domain);
+        log_i("Email domain %s is not registered \n", cur_email_domain);
         mail_domains_dscrptrs[ready_domains_count].domain = malloc(strlen(cur_email_domain));
         strcpy(mail_domains_dscrptrs[ready_domains_count].domain, cur_email_domain);
 
@@ -329,14 +325,14 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         add_first(&mail_domains_dscrptrs[ready_domains_count].mails_list, saved_email_path);
         mail_domains_dscrptrs[ready_domains_count].state = READY;
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
-        log_i("List count %d \n", count(mail_domains_dscrptrs[ready_domains_count].mails_list));
+        log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[ready_domains_count].mails_list));
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
     // Домен уже зарегистрирован
     else
     {
-        log_i("Socket for mail domain %s already binded", cur_email_domain);
+        log_i("Email domain %s is already registered", cur_email_domain);
         if (count(mail_domains_dscrptrs[found_domain_num].mails_list) == 0 || mail_domains_dscrptrs[found_domain_num].state == READY)
         {
             mail_domains_dscrptrs[found_domain_num].state = READY;
@@ -347,8 +343,8 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
                 return -1;
             }
 
-            if (connect(cur_domain_socket_fd, 
-                (struct sockaddr *)&mail_domains_dscrptrs[found_domain_num].domain_mail_server, sizeof(mail_domains_dscrptrs[found_domain_num].domain_mail_server)) < 0)
+            if (connect(cur_domain_socket_fd,
+                        (struct sockaddr *)&mail_domains_dscrptrs[found_domain_num].domain_mail_server, sizeof(mail_domains_dscrptrs[found_domain_num].domain_mail_server)) < 0)
             {
                 log_e("Connection to %s Failed ", cur_email_domain);
                 return -1;
@@ -366,7 +362,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
 
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
-        log_i("List count %d \n", count(mail_domains_dscrptrs[found_domain_num].mails_list));
+        log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[found_domain_num].mails_list));
         return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
 
@@ -410,7 +406,7 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
     switch (cur_mail_domain->state)
     {
     case HELO_MSG:
-        log_i("Socket %d of %s domain is in READY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);       
+        log_i("Socket %d of %s domain is in READY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         send_helo(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
@@ -544,4 +540,3 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
-
