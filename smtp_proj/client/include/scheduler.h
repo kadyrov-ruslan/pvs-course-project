@@ -21,6 +21,8 @@ int run_client();
 int master_process_worker_start(struct mail_process_dscrptr *mail_procs);
 int child_process_worker_start(int proc_idx);
 
+int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs);
+
 int get_domains_mails(struct domain_mails *domains_mails, int domains_count);
 int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs,
     fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
