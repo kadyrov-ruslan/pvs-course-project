@@ -30,27 +30,24 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
 
     key_t key = ftok("/tmp", 6);
     mail_procs[0].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
+    mail_procs[0].domains_count = 0;
 
     key = ftok("/tmp", 7);
     mail_procs[1].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
+    mail_procs[1].domains_count = 0;
     while (1)
     {
         domains_count = get_domains_mails(domains_mails, domains_count);
         for (int i = 0; i < domains_count; i++)
         {
+            int domain_proc_idx = get_mail_proc_idx(domains_mails[i].domain, domains_count, mail_procs);
             // проверяем, содержится ли домен в одном из процессов
             for (int j = 0; j < domains_mails[i].mails_count; j++)
             {
-                //TODO реализовать функцию по отслеживанию, в какой процесс лучше отправить почтовый домен
-                //чекаем, в каком из процессов может находиться домен.
-                //если нашли, то скидываем в соответствующую очередь
-                //если нет, то скидываем туда, где меньше всего нагрузка
                 struct queue_msg new_msg;
                 new_msg.mtype = 1;
                 strcpy(new_msg.mtext, domains_mails[i].mails_paths[j]);
-                msgsnd(mail_procs[1].msg_queue_id, &new_msg, sizeof(new_msg), IPC_NOWAIT);
-
-                //printf("SENDING %s\n", domains_mails[i].mails_paths[j]);
+                msgsnd(mail_procs[domain_proc_idx].msg_queue_id, &new_msg, sizeof(new_msg), IPC_NOWAIT);
             }
 
             domains_mails[i].mails_count = 0;
@@ -60,6 +57,42 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
         wait_for(25);
     }
     return 1;
+}
+
+
+// Возвращает индекс процесса, в который стоит отправить новое письмо на обработку
+int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs)
+{
+    for (int j = 0; j < 2; j++)
+    {
+        for (int i = 0; i < mail_procs[j].domains_count; i++)
+        {
+            // Если один из процессов уже занимается обработкой конкр.домена, скидываем письмо в него
+            if (strcmp(domain_name, mail_procs[j].domains[i]) == 0)
+            {
+                log_i("Process %d already handles %s domain. Domains count %d", j, domain_name, mail_procs[j].domains_count);
+                return j;   
+            }
+        }
+    }
+
+    // Домен не найден ни в одном из процессов. Скидываем в процесс с меньшим числом доменов
+    if (mail_procs[0].domains_count > mail_procs[1].domains_count)
+    {
+        mail_procs[1].domains[mail_procs[1].domains_count] = malloc(strlen(domain_name));
+        strcpy(mail_procs[1].domains[mail_procs[1].domains_count], domain_name);
+        mail_procs[1].domains_count++;
+        log_i("Process 1 handles %s domain. Domains count %d", domain_name, mail_procs[1].domains_count);
+        return 1;
+    }
+    else
+    {
+        mail_procs[0].domains[mail_procs[0].domains_count] = malloc(strlen(domain_name));
+        strcpy(mail_procs[0].domains[mail_procs[0].domains_count], domain_name);
+        mail_procs[0].domains_count++;
+        log_i("Process 0 handles %s domain. Domains count %d", domain_name, mail_procs[1].domains_count);
+        return 0;
+    }
 }
 
 // Содержит бизнес логику, обрабатываемую дочерним процессом
@@ -334,7 +367,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("List count %d \n", count(mail_domains_dscrptrs[found_domain_num].mails_list));
-
         return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
 
@@ -463,6 +495,7 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
     case QUIT_MSG:
         log_i("Socket %d of %s domain is in QUIT_MSG READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         update_mail_state(response_code, READY, cur_mail_domain, read_fds, write_fds);
+        close(cur_mail_domain->socket_fd);
         break;
     default:
         break;
@@ -472,7 +505,7 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 void update_mail_state(int response_code, mail_process_state new_state,
                        struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
 {
-    if (response_code < 200 || response_code > 400)
+    if (response_code > 0 && (response_code < 200 || response_code > 400))
     {
         printf("code number:%d\n", response_code);
         printf("ERROR:%s\n", cur_mail_domain->response_buf);
@@ -512,5 +545,3 @@ void shutdown_properly(int code)
     exit(code);
 }
 
-//printf("MQ id : %d \n", cur_proc_mq_id);
-// printf("Data Received is : %s \n", cur_msg.mtext);
