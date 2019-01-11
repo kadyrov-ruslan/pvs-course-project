@@ -43,7 +43,7 @@ int save_log(char *message, char *logs_dir)
         free(full_log_msg);
         fclose(fp);
     }
-
+    free(log_path);
     return 1;
 }
 
