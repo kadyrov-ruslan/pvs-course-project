@@ -185,15 +185,18 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
                         char **tokens = str_split(new_entry->d_name, '.');
                         char *first_part = tokens[2];
                         char *second_part = tokens[3];
-                        free(tokens);
 
                         char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
                         strcpy(tmp_cur_mail_domain, first_part);
                         strcat(tmp_cur_mail_domain, ".");
                         strcat(tmp_cur_mail_domain, second_part);
 
+                        free(tokens[0]);
+                        free(tokens[1]);
                         free(first_part);
                         free(second_part);
+                        free(tokens[4]);
+                        free(tokens);
 
                         tokens = str_split(tmp_cur_mail_domain, ',');
                         //Проверяем, есть ли текущий домен массиве доменов
@@ -239,6 +242,8 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
 
                         free(email_full_name);
                         free(tmp_cur_mail_domain);
+                        free(tokens[0]);
+                        free(tokens[1]);
                         free(tokens);
                     }
                 }
@@ -272,13 +277,18 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     strcat(tmp_cur_mail_domain, ".");
     strcat(tmp_cur_mail_domain, second_part);
 
+    free(tokens[0]);
+    free(tokens[1]);
     free(first_part);
     free(second_part);
+    free(tokens[4]);
     free(tokens);
 
     tokens = str_split(tmp_cur_mail_domain, ',');
     free(tmp_cur_mail_domain);
     char *cur_email_domain = tokens[0];
+    free(tokens[0]);
+    free(tokens[1]);
     free(tokens);
 
     //Проверяем, является ли домен письма новым
@@ -332,6 +342,8 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         mail_domains_dscrptrs[ready_domains_count].state = READY;
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[ready_domains_count].mails_list));
+        free(cur_email_domain);
+        free(saved_email_path);
         ready_domains_count++;
         return cur_domain_socket_fd;
     }
@@ -369,10 +381,10 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[found_domain_num].mails_list));
+        free(cur_email_domain);
+        free(saved_email_path);
         return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
-
-    free(saved_email_path);
 }
 
 // Выполняет обработку нового письма домена
