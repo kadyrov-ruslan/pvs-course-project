@@ -64,6 +64,53 @@ int init_suite(void)
 
 int clean_suite(void) { return 0; }
 
+void EMAIL_FILE_READ_SUCCESS(void)
+{
+    FILE *fp = fopen("/home/dev/mail/user1/new/1.3.localhost.com,S=41.mbox", "a+");
+    const char *text = "Write this to the file";
+    fprintf(fp, "Some text: %s\n", text);
+    fclose(fp);
+    char *read_msg = read_msg_file("/home/dev/mail/user1/new/1.3.localhost.com,S=41.mbox");
+    CU_ASSERT_NOT_EQUAL(read_msg, NULL);
+    remove("/home/dev/mail/user1/new/1.3.localhost.com,S=41.mbox");
+}
+
+void EMAIL_FILE_READ_FAILED(void)
+{
+    char *read_msg = read_msg_file("/home/dev/mail/user1/new/1.4.localhost.com,S=41.mbox");
+    CU_ASSERT_EQUAL(read_msg, NULL);
+}
+
+void DOMAIN_SERVER_INFO_GOT_SUCCESS(void)
+{
+    struct sockaddr_in mail_server = get_domain_server_info("gmail.com");
+    CU_ASSERT_EQUAL(mail_server.sin_port, htons(25));
+}
+
+void DOMAIN_SERVER_INFO_GOT_FAILED(void)
+{
+    struct sockaddr_in mail_server = get_domain_server_info("dsdsdsdsds.net");
+    CU_ASSERT_EQUAL(mail_server.sin_port, htons(0));
+}
+
+void GMAIL_MX_SERVER_NAME_GOT_SUCCESS(void)
+{
+    char *server_name = get_domain_mx_server_name("gmail.com");
+    CU_ASSERT_NOT_EQUAL(server_name, NULL);
+}
+
+void LOCALHOST_MX_SERVER_NAME_GOT_SUCCESS(void)
+{
+    char *server_name = get_domain_mx_server_name("localhost.com");
+    CU_ASSERT_STRING_EQUAL(server_name, "localhost");
+}
+
+void FAKE_MX_SERVER_NAME_GOT_FAILED(void)
+{
+    char *server_name = get_domain_mx_server_name("noname.com");
+    CU_ASSERT_EQUAL(server_name, NULL);
+}
+
 void ONE_EMAIL_SENT_SUCCESS(void)
 {
     int response_code = get_server_response_code(mock_dscrptrs[0].socket_fd, mock_dscrptrs[0].response_buf);
@@ -157,28 +204,42 @@ void TWO_EMAILS_ONE_SESSION_SENT_SUCCESS(void)
     CU_ASSERT(response_code > 200 && response_code < 400);
 }
 
+
 int main(void)
 {
-    CU_pSuite pSuite = NULL;
-
+    CU_pSuite smtp_client_suite = NULL;
+    CU_pSuite msg_unit_suite = NULL;
+    CU_pSuite mx_utils_unit_suite = NULL;
     /* initialize the CUnit test registry */
     if (CUE_SUCCESS != CU_initialize_registry())
         return CU_get_error();
 
     /* add a suite to the registry */
-    pSuite = CU_add_suite("smtp_client_test_suite", init_suite, clean_suite);
-    if (NULL == pSuite)
+    smtp_client_suite = CU_add_suite("SMTP client tests suite", init_suite, clean_suite);
+    msg_unit_suite = CU_add_suite("MSG unit tests suite", NULL, clean_suite);
+    mx_utils_unit_suite = CU_add_suite("MX utils unit tests suite", NULL, clean_suite);
+    if (NULL == smtp_client_suite)
+    {
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
+
+    if (NULL == msg_unit_suite)
     {
         CU_cleanup_registry();
         return CU_get_error();
     }
 
     /* add the tests to the suite */
-    if ((NULL == CU_add_test(pSuite, "ONE_EMAIL_SENT_SUCCESS", ONE_EMAIL_SENT_SUCCESS)) ||
-        (NULL == CU_add_test(pSuite, "TWO_EMAILS_ONE_SESSION_SENT_SUCCESS", TWO_EMAILS_ONE_SESSION_SENT_SUCCESS)))
-        // (NULL == CU_add_test(pSuite, "RCPT_TO_SENT_SUCCESSFULLY", RCPT_TO_SENT_SUCCESS))||
-        // (NULL == CU_add_test(pSuite, "DATA_MSG_SENT_SUCCESSFULLY", DATA_MSG_SENT_SUCCESS))||
-        // (NULL == CU_add_test(pSuite, "MAIL_BODY_SENT_SUCCESSFULLY", MAIL_BODY_SENT_SUCCESS)) ||
+    if ((NULL == CU_add_test(smtp_client_suite, "ONE_EMAIL_SENT_SUCCESS", ONE_EMAIL_SENT_SUCCESS)) ||
+        (NULL == CU_add_test(smtp_client_suite, "TWO_EMAILS_ONE_SESSION_SENT_SUCCESS", TWO_EMAILS_ONE_SESSION_SENT_SUCCESS)) ||
+        (NULL == CU_add_test(msg_unit_suite, "EMAIL_FILE_READ_SUCCESS", EMAIL_FILE_READ_SUCCESS))||
+        (NULL == CU_add_test(msg_unit_suite, "EMAIL_FILE_READ_FAILED", EMAIL_FILE_READ_FAILED))||
+        (NULL == CU_add_test(mx_utils_unit_suite, "DOMAIN_SERVER_INFO_GOT_SUCCESS", DOMAIN_SERVER_INFO_GOT_SUCCESS))||
+        (NULL == CU_add_test(mx_utils_unit_suite, "DOMAIN_SERVER_INFO_GOT_FAILED", DOMAIN_SERVER_INFO_GOT_FAILED)) ||
+        (NULL == CU_add_test(mx_utils_unit_suite, "GMAIL_MX_SERVER_NAME_GOT_SUCCESS", GMAIL_MX_SERVER_NAME_GOT_SUCCESS))||
+        (NULL == CU_add_test(mx_utils_unit_suite, "LOCALHOST_MX_SERVER_NAME_GOT_SUCCESS", LOCALHOST_MX_SERVER_NAME_GOT_SUCCESS))||
+        (NULL == CU_add_test(mx_utils_unit_suite, "FAKE_MX_SERVER_NAME_GOT_FAILED", FAKE_MX_SERVER_NAME_GOT_FAILED)))
         // (NULL == CU_add_test(pSuite, "QUIT_SENT_SUCCESS", QUIT_SENT_SUCCESS)))
     {
         CU_cleanup_registry();

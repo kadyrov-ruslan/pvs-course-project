@@ -3,24 +3,25 @@
 struct sockaddr_in get_domain_server_info(char *domain_name)
 {
     struct sockaddr_in mail_server; //this struct contains ip address and a port of the server.
-    struct hostent *mail_info;      //this struct contains all the info of a host name in the Internet.
-
-    char *mail_ip;
-    mail_info = gethostbyname(domain_name);
+    struct hostent *mail_info = gethostbyname(domain_name);
     if (mail_info == NULL)
     {
-        printf("%s\n", strerror(errno));
-        exit(0);
+        //printf("%s\n", strerror(errno));
+        //exit(0);
+        bzero(&mail_server, sizeof(mail_server));
+        mail_server.sin_port = htons(0); //port 25=SMTP.
     }
+    else
+    {
+        char *mail_ip = (char *)malloc(INET_ADDRSTRLEN + 1);
+        inet_ntop(AF_INET, mail_info->h_addr_list[0], mail_ip, INET_ADDRSTRLEN);
+        free(mail_ip);
 
-    mail_ip = (char *)malloc(INET_ADDRSTRLEN + 1);
-    inet_ntop(AF_INET, mail_info->h_addr_list[0], mail_ip, INET_ADDRSTRLEN);
-    free(mail_ip);
-
-    bzero(&mail_server, sizeof(mail_server));
-    mail_server.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
-    mail_server.sin_port = htons(25); //port 25=SMTP.
-    bcopy((char *)mail_info->h_addr_list[0], (char *)&mail_server.sin_addr.s_addr, mail_info->h_length);
+        bzero(&mail_server, sizeof(mail_server));
+        mail_server.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
+        mail_server.sin_port = htons(25); //port 25=SMTP.
+        bcopy((char *)mail_info->h_addr_list[0], (char *)&mail_server.sin_addr.s_addr, mail_info->h_length);
+    }
     return mail_server;
 }
 
@@ -38,7 +39,10 @@ char *get_domain_mx_server_name(char *domain_name)
     // MX RECORD
     r = res_query(domain_name, ns_c_any, ns_t_mx, nsbuf, sizeof(nsbuf));
     if (r < 0)
-        perror(domain_name);
+    {
+        //perror(domain_name);
+        return NULL;
+    }
     else
     {
         ns_initparse(nsbuf, r, &msg);
