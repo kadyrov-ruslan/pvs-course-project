@@ -31,6 +31,7 @@ int remove_first(node_t ** head)
         return -1;
 
     next_node = (*head)->next;
+    free((*head)->val);
     free(*head);
     *head = next_node;
 

@@ -46,11 +46,13 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
                 struct queue_msg new_msg;
                 new_msg.mtype = 1;
                 strcpy(new_msg.mtext, domains_mails[i].mails_paths[j]);
+                free(domains_mails[i].mails_paths[j]);
                 msgsnd(mail_procs[domain_proc_idx].msg_queue_id, &new_msg, sizeof(new_msg), IPC_NOWAIT);
             }
 
             domains_mails[i].mails_count = 0;
-            memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
+            free(domains_mails[i].mails_paths);
+            //memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
         }
 
         wait_for(25);
@@ -180,16 +182,18 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
                         strcpy(email_full_name, user_dir_new);
                         strcat(email_full_name, new_entry->d_name);
 
-                        char **tokens;
-                        tokens = str_split(new_entry->d_name, '.');
-
+                        char **tokens = str_split(new_entry->d_name, '.');
                         char *first_part = tokens[2];
                         char *second_part = tokens[3];
+                        free(tokens);
 
                         char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
                         strcpy(tmp_cur_mail_domain, first_part);
                         strcat(tmp_cur_mail_domain, ".");
                         strcat(tmp_cur_mail_domain, second_part);
+
+                        free(first_part);
+                        free(second_part);
 
                         tokens = str_split(tmp_cur_mail_domain, ',');
                         //Проверяем, есть ли текущий домен массиве доменов
@@ -259,9 +263,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     char *saved_email_path = malloc(strlen(email_path));
     strcpy(saved_email_path, email_path);
 
-    char **tokens;
-    tokens = str_split(email_path, '.');
-
+    char **tokens = str_split(email_path, '.');
     char *first_part = tokens[2];
     char *second_part = tokens[3];
 
@@ -269,9 +271,13 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     strcpy(tmp_cur_mail_domain, first_part);
     strcat(tmp_cur_mail_domain, ".");
     strcat(tmp_cur_mail_domain, second_part);
+
+    free(first_part);
+    free(second_part);
     free(tokens);
 
     tokens = str_split(tmp_cur_mail_domain, ',');
+    free(tmp_cur_mail_domain);
     char *cur_email_domain = tokens[0];
     free(tokens);
 
@@ -367,7 +373,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     }
 
     free(saved_email_path);
-    free(tmp_cur_mail_domain);
 }
 
 // Выполняет обработку нового письма домена
@@ -511,6 +516,7 @@ void update_mail_state(int response_code, mail_process_state new_state,
         if (cur_mail_domain->state == BODY_MSG)
         {
             remove_first(&cur_mail_domain->mails_list);
+            free(cur_mail_domain->buffer);
             if (count(cur_mail_domain->mails_list) > 0)
                 cur_mail_domain->state = MAIL_FROM_MSG;
             else
