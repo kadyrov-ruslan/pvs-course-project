@@ -5,6 +5,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include "list.h"
+#include "client-fsm.h"
 
 #define MAX_BUF_LEN 1024
 
@@ -28,7 +29,7 @@ struct mail_domain_dscrptr
     int socket_fd;
     int mails_count;
     struct node_t *mails_list;
-    mail_process_state state;
+    te_client_fsm_state state;
     char *buffer;
 
     char request_buf[MAX_BUF_LEN];   // Буфер для отправляемых данных
