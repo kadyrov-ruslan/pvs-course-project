@@ -2,39 +2,74 @@
 
 int ready_domains_count = 0; // юзается в чайлд процессах
 
-int run_client()
+int run_client(int proc_num)
 {
-    // Дескрипторы дочерних процессов - содержат число почтовых доменов и переданных писем в каждый дочерний процесс
-    struct mail_process_dscrptr mail_procs[PROC_NUM];
+    //create_child_proc(0, proc_num);
+    struct mail_process_dscrptr mail_procs[proc_num];
     mail_procs[0].pid = fork();
-    if (mail_procs[0].pid == 0)
+    if (mail_procs[0].pid == -1)
+    {
+        log_e("Unable to fork() new process from %d", getpid());
+        abort();
+    }
+    else if (mail_procs[0].pid == 0)
         child_process_worker_start(6);
     else
     {
         mail_procs[1].pid = fork();
-        if (mail_procs[1].pid == 0)
+        if (mail_procs[1].pid == -1)
+        {
+            log_e("Unable to fork() new process from %d", getpid());
+            abort();
+        }
+        else if (mail_procs[1].pid == 0)
             child_process_worker_start(7);
         else
-            master_process_worker_start(mail_procs);
+            master_process_worker_start(mail_procs, proc_num);
     }
 
     return 1;
 }
 
+void create_child_proc(int idx, int proc_num)
+{
+    int fork_res = fork();
+    if (fork_res == -1)
+    {
+        log_e("Unable to fork() new process from %d", getpid());
+        abort();
+    }
+    else if (fork_res == 0)
+        child_process_worker_start(idx);
+    else
+    {
+        if (idx < proc_num - 1)
+        {
+            create_child_proc(idx + 1, proc_num);
+        }
+        else
+        {
+            log_e("Unable to fork() new process from %d", getpid());
+            struct mail_process_dscrptr mail_procs[proc_num];
+            master_process_worker_start(mail_procs, proc_num);
+        }
+    }
+}
+
 // Содержит бизнес логику, обрабатываемую главным процессом
-int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
+int master_process_worker_start(struct mail_process_dscrptr *mail_procs, int proc_num)
 {
     log_i("%s", "Worker for master proc successfully started");
     struct domain_mails domains_mails[MAX_MAIL_DOMAIN_NUM * 2];
     int domains_count = 0;
 
-    key_t key = ftok("/tmp", 6);
-    mail_procs[0].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
-    mail_procs[0].domains_count = 0;
+    for (int i = 0; i < proc_num; i++)
+    {
+        key_t key = ftok("/tmp", 6 + i);
+        mail_procs[i].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
+        mail_procs[i].domains_count = 0;
+    }
 
-    key = ftok("/tmp", 7);
-    mail_procs[1].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
-    mail_procs[1].domains_count = 0;
     while (1)
     {
         domains_count = get_domains_mails(domains_mails, domains_count);
@@ -55,11 +90,12 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs)
             memset(&domains_mails[i].mails_paths[0], 0, sizeof(domains_mails[i].mails_paths));
         }
 
-        wait_for(25);
+        wait_for(RETRY_DIR_READ_TIME);
     }
     return 1;
 }
 
+//todo доделать для аргумента proc_num
 // Возвращает индекс процесса, в который стоит отправить новое письмо на обработку
 int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs)
 {
@@ -132,7 +168,7 @@ int child_process_worker_start(int proc_idx)
         for (int i = 0; i < ready_domains_count; i++)
         {
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            if (count(cur_domain->mails_list) > 0 || cur_domain->state == CLIENT_FSM_ST_DONE)
+            if (count(cur_domain->mails_list) > 0 || cur_domain->in_process)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
         // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
@@ -332,7 +368,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             log_i("Successfully connected to %s ", cur_email_domain);
             log_i("Socket fd : %d", cur_domain_socket_fd);
             mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
-            mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_INIT;
+            mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_SEND_HELO;
 
             FD_SET(cur_domain_socket_fd, read_fds);
             FD_SET(cur_domain_socket_fd, except_fds);
@@ -344,6 +380,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         add_first(&mail_domains_dscrptrs[ready_domains_count].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[ready_domains_count].mails_list));
+        mail_domains_dscrptrs[ready_domains_count].in_process = true;
         free(cur_email_domain);
         free(saved_email_path);
         ready_domains_count++;
@@ -382,6 +419,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         }
 
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
+        mail_domains_dscrptrs[ready_domains_count].in_process = true;
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[found_domain_num].mails_list));
         free(cur_email_domain);
@@ -463,6 +501,7 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
     case CLIENT_FSM_ST_SEND_QUIT:
         log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         send_quit(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        log_i("%s", "SENT QUIT SUCCESS");
         break;
     default:
         break;
@@ -470,52 +509,78 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
 
     FD_CLR(cur_mail_domain->socket_fd, write_fds);
     FD_SET(cur_mail_domain->socket_fd, read_fds);
+    //log_i("%s", "FD SET TO READ");
 }
 
 // Обрабатывает почтовый домен в случае, когда его сокет находится в read_fds
 void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
 {
-    int response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-    switch (cur_mail_domain->state)
+    char *server_response = read_data_from_server(cur_mail_domain->socket_fd);
+    if (server_response == NULL)
     {
-    case CLIENT_FSM_ST_INIT:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_INIT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, CLIENT_FSM_ST_SEND_HELO, cur_mail_domain, read_fds, write_fds);
-        break;
-
-    case CLIENT_FSM_ST_SEND_HELO:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_HELO READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, CLIENT_FSM_ST_SEND_MAIL_FROM, cur_mail_domain, read_fds, write_fds);
-        break;
-
-    case CLIENT_FSM_ST_SEND_MAIL_FROM:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_MAIL_FROM READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, CLIENT_FSM_ST_SEND_RCPT_TO, cur_mail_domain, read_fds, write_fds);
-        break;
-
-    case CLIENT_FSM_ST_SEND_RCPT_TO:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_RCPT_TO READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, CLIENT_FSM_ST_SEND_DATA, cur_mail_domain, read_fds, write_fds);
-        break;
-
-    case CLIENT_FSM_ST_SEND_DATA:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_DATA READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, CLIENT_FSM_ST_SEND_BODY, cur_mail_domain, read_fds, write_fds);
-        break;
-
-    case CLIENT_FSM_ST_SEND_BODY:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_BODY READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, READY, cur_mail_domain, read_fds, write_fds);
-        break;
-
-    case CLIENT_FSM_ST_SEND_QUIT:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        update_mail_state(response_code, CLIENT_FSM_ST_DONE, cur_mail_domain, read_fds, write_fds);
-        close(cur_mail_domain->socket_fd);
-        break;
-    default:
-        break;
+        log_e("%s", "Get NULL data from server");
+        //close_socket(sockets[i].fd);
     }
+
+    log_i("Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
+    te_client_fsm_event event = check_server_code(server_response);
+
+    if (cur_mail_domain->state == CLIENT_FSM_ST_SEND_QUIT)
+    {
+        close(cur_mail_domain->socket_fd);
+        cur_mail_domain->in_process = false;
+    }
+
+    te_client_fsm_state new_state = client_fsm_step(cur_mail_domain->state, event, NULL);
+    cur_mail_domain->state = new_state;
+    //log_i("Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
+
+    FD_CLR(cur_mail_domain->socket_fd, read_fds);
+    FD_SET(cur_mail_domain->socket_fd, write_fds);
+
+    //int response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
+    // switch (cur_mail_domain->state)
+    // {
+    // case CLIENT_FSM_ST_INIT:
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_INIT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_HELO, cur_mail_domain, read_fds, write_fds);
+    //     break;
+
+    // case CLIENT_FSM_ST_SEND_HELO:
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_HELO READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_MAIL_FROM, cur_mail_domain, read_fds, write_fds);
+    //     break;
+
+    // case CLIENT_FSM_ST_SEND_MAIL_FROM:
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_MAIL_FROM READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_RCPT_TO, cur_mail_domain, read_fds, write_fds);
+    //     break;
+
+    // case CLIENT_FSM_ST_SEND_RCPT_TO:
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_RCPT_TO READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_DATA, cur_mail_domain, read_fds, write_fds);
+    //     break;
+
+    // case CLIENT_FSM_ST_SEND_DATA:
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_DATA READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_BODY, cur_mail_domain, read_fds, write_fds);
+    //     break;
+
+    // case CLIENT_FSM_ST_SEND_BODY:
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_BODY READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_QUIT, cur_mail_domain, read_fds, write_fds);
+    //     break;
+
+    // case CLIENT_FSM_ST_SEND_QUIT:
+    //     log_i("%s", "READ QUIT SUCCESS");
+    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+    //     update_mail_state(response_code, CLIENT_FSM_ST_DONE, cur_mail_domain, read_fds, write_fds);
+    //     close(cur_mail_domain->socket_fd);
+    //     cur_mail_domain->in_process = false;
+    //     break;
+    // default:
+    //     break;
+    // }
 }
 
 void update_mail_state(int response_code, te_client_fsm_state new_state,

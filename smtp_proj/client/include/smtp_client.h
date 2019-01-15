@@ -21,6 +21,11 @@
 
 char client_host_name[MAX_BUF_LEN];
 
+char *read_data_from_server(int socket_fd);
+te_client_fsm_event check_server_code(char *response);
+
+
+
 int send_helo(int socket_fd, char *request_buf);
 int send_mail_from(int socket_fd, char *msg, char *request_buf);
 int send_rcpt_to(int socket_fd, char *msg, char *request_buf);

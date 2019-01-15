@@ -174,8 +174,9 @@ static int read_config(char *argv[])
 
 int main(int argc, char *argv[])
 {
+    //"/home/dev/pvs-course-project/smtp_proj/client/logs/"
     if (fork() == 0)
-        start_logger("/home/dev/pvs-course-project/smtp_proj/client/logs/");
+        start_logger(argv[2]);
     else
     {
         if (argc == 1)
@@ -185,7 +186,7 @@ int main(int argc, char *argv[])
         else
         {
             read_config(argv);
-            run_client();
+            run_client(conf.proc_cnt);
         }
     }
     return 0;

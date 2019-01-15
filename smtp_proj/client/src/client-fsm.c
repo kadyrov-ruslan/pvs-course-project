@@ -35,8 +35,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #define DEFINE_FSM
-#include "client-fsm.h"
+#include "../include/client-fsm.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
  *  Do not make changes to this file, except between the START/END
@@ -278,35 +279,35 @@ client_fsm_step(
     switch (trans) {
     case CLIENT_FSM_TR_CONNECT_ERROR:
         /* START == CONNECT_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_CONNECT_ERROR();
+        //nxtSt = HANDLE_CONNECT_ERROR();
         /* END   == CONNECT_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_CONNECT_TIMEOUT:
         /* START == CONNECT_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_CONNECT_TIMEOUT();
+        //nxtSt = HANDLE_CONNECT_TIMEOUT();
         /* END   == CONNECT_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_INIT_ERROR:
         /* START == INIT_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_INIT_ERROR();
+        //nxtSt = HANDLE_INIT_ERROR();
         /* END   == INIT_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_INIT_OK:
         /* START == INIT_OK == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_INIT_OK();
+        //nxtSt = HANDLE_INIT_OK();
         /* END   == INIT_OK == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_INIT_TIMEOUT:
         /* START == INIT_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_INIT_TIMEOUT();
+        //nxtSt = HANDLE_INIT_TIMEOUT();
         /* END   == INIT_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
@@ -320,133 +321,133 @@ client_fsm_step(
 
     case CLIENT_FSM_TR_SEND_BODY_ERROR:
         /* START == SEND_BODY_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_BODY_ERROR();
+        //nxtSt = HANDLE_SEND_BODY_ERROR();
         /* END   == SEND_BODY_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_BODY_TIMEOUT:
         /* START == SEND_BODY_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_BODY_TIMEOUT();
+        //nxtSt = HANDLE_SEND_BODY_TIMEOUT();
         /* END   == SEND_BODY_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_DATA_ERROR:
         /* START == SEND_DATA_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_DATA_ERROR();
+        //nxtSt = HANDLE_SEND_DATA_ERROR();
         /* END   == SEND_DATA_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_DATA_OK:
         /* START == SEND_DATA_OK == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_DATA_OK();
+        //nxtSt = HANDLE_SEND_DATA_OK();
         /* END   == SEND_DATA_OK == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_DATA_TIMEOUT:
         /* START == SEND_DATA_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_DATA_TIMEOUT();
+        //nxtSt = HANDLE_SEND_DATA_TIMEOUT();
         /* END   == SEND_DATA_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_HELO_ERROR:
         /* START == SEND_HELO_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_HELO_ERROR();
+        //nxtSt = HANDLE_SEND_HELO_ERROR();
         /* END   == SEND_HELO_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_HELO_OK:
         /* START == SEND_HELO_OK == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_HELO_OK();
+        //nxtSt = HANDLE_SEND_HELO_OK();
         /* END   == SEND_HELO_OK == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_HELO_RTIME_EXPIRED:
         /* START == SEND_HELO_RTIME_EXPIRED == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_HELO_RTIME_EXPIRED();
+        //nxtSt = HANDLE_SEND_HELO_RTIME_EXPIRED();
         /* END   == SEND_HELO_RTIME_EXPIRED == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_HELO_TIMEOUT:
         /* START == SEND_HELO_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_HELO_TIMEOUT();
+       // nxtSt = HANDLE_SEND_HELO_TIMEOUT();
         /* END   == SEND_HELO_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_MAIL_FROM_ERROR:
         /* START == SEND_MAIL_FROM_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_MAIL_FROM_ERROR();
+        //nxtSt = HANDLE_SEND_MAIL_FROM_ERROR();
         /* END   == SEND_MAIL_FROM_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_MAIL_FROM_OK:
         /* START == SEND_MAIL_FROM_OK == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_MAIL_FROM_OK();
+        //nxtSt = HANDLE_SEND_MAIL_FROM_OK();
         /* END   == SEND_MAIL_FROM_OK == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_MAIL_FROM_TIMEOUT:
         /* START == SEND_MAIL_FROM_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_MAIL_FROM_TIMEOUT();
+        //nxtSt = HANDLE_SEND_MAIL_FROM_TIMEOUT();
         /* END   == SEND_MAIL_FROM_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_QUIT_ERROR:
         /* START == SEND_QUIT_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_QUIT_ERROR();
+        //nxtSt = HANDLE_SEND_QUIT_ERROR();
         /* END   == SEND_QUIT_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_QUIT_OK:
         /* START == SEND_QUIT_OK == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_QUIT_OK();
+        //nxtSt = HANDLE_SEND_QUIT_OK();
         /* END   == SEND_QUIT_OK == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_QUIT_TIMEOUT:
         /* START == SEND_QUIT_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_QUIT_TIMEOUT();
+       // nxtSt = HANDLE_SEND_QUIT_TIMEOUT();
         /* END   == SEND_QUIT_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_RCPT_TO_ERROR:
         /* START == SEND_RCPT_TO_ERROR == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_RCPT_TO_ERROR();
+        //nxtSt = HANDLE_SEND_RCPT_TO_ERROR();
         /* END   == SEND_RCPT_TO_ERROR == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_RCPT_TO_MULTIPLE_RCPTS:
         /* START == SEND_RCPT_TO_MULTIPLE_RCPTS == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_RCPT_TO_MULTIPLE_RCPTS();
+        //nxtSt = HANDLE_SEND_RCPT_TO_MULTIPLE_RCPTS();
         /* END   == SEND_RCPT_TO_MULTIPLE_RCPTS == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_RCPT_TO_OK:
         /* START == SEND_RCPT_TO_OK == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_RCPT_TO_OK();
+       //nxtSt = HANDLE_SEND_RCPT_TO_OK();
         /* END   == SEND_RCPT_TO_OK == DO NOT CHANGE THIS COMMENT */
         break;
 
 
     case CLIENT_FSM_TR_SEND_RCPT_TO_TIMEOUT:
         /* START == SEND_RCPT_TO_TIMEOUT == DO NOT CHANGE THIS COMMENT */
-        nxtSt = HANDLE_SEND_RCPT_TO_TIMEOUT();
+        //nxtSt = HANDLE_SEND_RCPT_TO_TIMEOUT();
         /* END   == SEND_RCPT_TO_TIMEOUT == DO NOT CHANGE THIS COMMENT */
         break;
 
