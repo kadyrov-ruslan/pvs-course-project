@@ -36,9 +36,6 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
 void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds);
 void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds);  
 
-void update_mail_state(int response_code, te_client_fsm_state new_state,
-                       struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds);
-
 void wait_for (unsigned int secs);
 void shutdown_properly(int code);
 

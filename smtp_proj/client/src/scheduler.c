@@ -368,7 +368,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             log_i("Successfully connected to %s ", cur_email_domain);
             log_i("Socket fd : %d", cur_domain_socket_fd);
             mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
-            mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_SEND_HELO;
+            mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_CONNECT;
 
             FD_SET(cur_domain_socket_fd, read_fds);
             FD_SET(cur_domain_socket_fd, except_fds);
@@ -509,7 +509,6 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
 
     FD_CLR(cur_mail_domain->socket_fd, write_fds);
     FD_SET(cur_mail_domain->socket_fd, read_fds);
-    //log_i("%s", "FD SET TO READ");
 }
 
 // Обрабатывает почтовый домен в случае, когда его сокет находится в read_fds
@@ -525,7 +524,7 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
     log_i("Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
     te_client_fsm_event event = check_server_code(server_response);
 
-    if (cur_mail_domain->state == CLIENT_FSM_ST_SEND_QUIT)
+    if (cur_mail_domain->state == CLIENT_FSM_ST_DONE)
     {
         close(cur_mail_domain->socket_fd);
         cur_mail_domain->in_process = false;
@@ -533,83 +532,9 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     te_client_fsm_state new_state = client_fsm_step(cur_mail_domain->state, event, NULL);
     cur_mail_domain->state = new_state;
-    //log_i("Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
 
     FD_CLR(cur_mail_domain->socket_fd, read_fds);
     FD_SET(cur_mail_domain->socket_fd, write_fds);
-
-    //int response_code = get_server_response_code(cur_mail_domain->socket_fd, cur_mail_domain->response_buf);
-    // switch (cur_mail_domain->state)
-    // {
-    // case CLIENT_FSM_ST_INIT:
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_INIT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_HELO, cur_mail_domain, read_fds, write_fds);
-    //     break;
-
-    // case CLIENT_FSM_ST_SEND_HELO:
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_HELO READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_MAIL_FROM, cur_mail_domain, read_fds, write_fds);
-    //     break;
-
-    // case CLIENT_FSM_ST_SEND_MAIL_FROM:
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_MAIL_FROM READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_RCPT_TO, cur_mail_domain, read_fds, write_fds);
-    //     break;
-
-    // case CLIENT_FSM_ST_SEND_RCPT_TO:
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_RCPT_TO READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_DATA, cur_mail_domain, read_fds, write_fds);
-    //     break;
-
-    // case CLIENT_FSM_ST_SEND_DATA:
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_DATA READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_BODY, cur_mail_domain, read_fds, write_fds);
-    //     break;
-
-    // case CLIENT_FSM_ST_SEND_BODY:
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_BODY READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_SEND_QUIT, cur_mail_domain, read_fds, write_fds);
-    //     break;
-
-    // case CLIENT_FSM_ST_SEND_QUIT:
-    //     log_i("%s", "READ QUIT SUCCESS");
-    //     log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-    //     update_mail_state(response_code, CLIENT_FSM_ST_DONE, cur_mail_domain, read_fds, write_fds);
-    //     close(cur_mail_domain->socket_fd);
-    //     cur_mail_domain->in_process = false;
-    //     break;
-    // default:
-    //     break;
-    // }
-}
-
-void update_mail_state(int response_code, te_client_fsm_state new_state,
-                       struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
-{
-    if (response_code > 0 && (response_code < 200 || response_code > 400))
-    {
-        printf("code number:%d\n", response_code);
-        printf("ERROR:%s\n", cur_mail_domain->response_buf);
-    }
-    else
-    {
-        if (cur_mail_domain->state == CLIENT_FSM_ST_SEND_BODY)
-        {
-            remove_first(&cur_mail_domain->mails_list);
-            free(cur_mail_domain->buffer);
-            if (count(cur_mail_domain->mails_list) > 0)
-                cur_mail_domain->state = CLIENT_FSM_ST_SEND_MAIL_FROM;
-            else
-                cur_mail_domain->state = CLIENT_FSM_ST_SEND_QUIT;
-        }
-        else
-        {
-            cur_mail_domain->state = new_state;
-        }
-
-        FD_CLR(cur_mail_domain->socket_fd, read_fds);
-        FD_SET(cur_mail_domain->socket_fd, write_fds);
-    }
 }
 
 // Ожидает заданное число секунд

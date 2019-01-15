@@ -68,7 +68,7 @@ typedef enum {
  *
  *  Count of the valid transition events
  */
-#define CLIENT_FSM_EVENT_CT 7
+#define CLIENT_FSM_EVENT_CT 8
 typedef enum {
     CLIENT_FSM_EV_OK,
     CLIENT_FSM_EV_ERROR,
@@ -77,6 +77,7 @@ typedef enum {
     CLIENT_FSM_EV_RTIME_EXPIRED,
     CLIENT_FSM_EV_COMMAND_NOT_IMPLEMENTED,
     CLIENT_FSM_EV_MULTIPLE_RCPTS,
+    CLIENT_FSM_EV_MULTIPLE_EMAILS,
     CLIENT_FSM_EV_INVALID
 } te_client_fsm_event;
 
