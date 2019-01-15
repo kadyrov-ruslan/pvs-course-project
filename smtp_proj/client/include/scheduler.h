@@ -15,11 +15,13 @@
 #include <sys/msg.h> 
 #include <time.h>
 
-#define PROC_NUM 2
 #define MAX_MAIL_DOMAIN_NUM 50
+#define RETRY_DIR_READ_TIME 25
 
-int run_client();
-int master_process_worker_start(struct mail_process_dscrptr *mail_procs);
+int run_client(int proc_num);
+void create_child_proc(int idx, int proc_num);
+
+int master_process_worker_start(struct mail_process_dscrptr *mail_procs, int proc_num);
 int child_process_worker_start(int proc_idx);
 
 int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs);

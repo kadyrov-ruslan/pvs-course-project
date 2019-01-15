@@ -127,7 +127,7 @@ int get_server_response_code(int socket_fd, char *response_buf)
     memcpy(server_returned_code, response_buf, strlen(server_returned_code));
     int code = 0;
     code = atoi(server_returned_code);
-    //log_i("Socket %d SERVER code %d", socket_fd, code);
+    log_i("Socket %d SERVER code %d", socket_fd, code);
     //printf("code number:%d\n", code);
     return code;
 }
@@ -149,4 +149,74 @@ int read_fd_line(int fd, char *line, int lim)
     //printf("Socket %d SERVER RESPONSE %s \n", fd, line);
     log_i("Socket %d SERVER RESPONSE %s", fd, line);
     return i;
+}
+
+char *read_data_from_server(int socket_fd)
+{
+    char buf[MAX_BUF_LEN];
+    char *msg = (char *)malloc(MAX_BUF_LEN);
+
+    ssize_t nread = 0;
+    ssize_t read_bytes = 0;
+    ssize_t msg_size = MAX_BUF_LEN;
+    ssize_t buf_size = MAX_BUF_LEN;
+
+    bzero(buf, buf_size);
+    bzero(msg, msg_size);
+    msg[0] = '\0';
+
+    while ((nread = recv(socket_fd, buf, buf_size - 1, 0)) > 0)
+    {
+        if (nread > buf_size)
+            break;
+
+        read_bytes += nread;
+
+        if (read_bytes < msg_size)
+        {
+            strcat(msg, buf);
+        }
+        else
+        {
+            msg_size = read_bytes;
+            msg = (char *)realloc(msg, msg_size + 1);
+            strcat(msg, buf);
+        }
+
+        if (strstr(msg, "\r\n") != NULL)
+            break;
+
+        bzero(buf, buf_size);
+    }
+
+    if (nread < 0)
+    {
+        log_e("%s","Could not read data from server");
+        return NULL;
+    }
+
+    log_i("Socket %d SERVER RESPONSE %s", socket_fd, msg);
+    return msg;
+}
+
+te_client_fsm_event check_server_code(char *response)
+{
+    char server_returned_code[4] = "   ";
+    memcpy(server_returned_code, response, strlen(server_returned_code));
+    int code = atoi(server_returned_code);
+    if (code < 200 || (code > 300 && code != 354))
+    {
+        char error_msg[1024];
+        bzero(error_msg, 1024);
+        strcpy(error_msg, "Server code = ");
+        strcat(error_msg, server_returned_code);
+        log_e("SERVER error msg %s", error_msg);
+
+        if (code == 502 && strstr(response, "not implemented") != NULL)
+            return CLIENT_FSM_EV_COMMAND_NOT_IMPLEMENTED;
+        else
+            return CLIENT_FSM_EV_ERROR;
+    }
+
+    return CLIENT_FSM_EV_OK;
 }
