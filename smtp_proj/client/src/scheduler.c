@@ -168,7 +168,7 @@ int child_process_worker_start(int proc_idx)
         for (int i = 0; i < ready_domains_count; i++)
         {
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            if (count(cur_domain->mails_list) > 0 || cur_domain->in_process)
+            if (count(cur_domain->mails_list) > 0 || cur_domain->state > CLIENT_FSM_ST_INIT)
                 process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
         }
         // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
@@ -390,7 +390,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     else
     {
         log_i("Email domain %s is already registered", cur_email_domain);
-        if (count(mail_domains_dscrptrs[found_domain_num].mails_list) == 0 || mail_domains_dscrptrs[found_domain_num].state == CLIENT_FSM_ST_DONE)
+        if (count(mail_domains_dscrptrs[found_domain_num].mails_list) == 0 || mail_domains_dscrptrs[found_domain_num].state == CLIENT_FSM_ST_INIT)
         {
             mail_domains_dscrptrs[found_domain_num].state = CLIENT_FSM_ST_CONNECT;
             int cur_domain_socket_fd = 0;
@@ -501,7 +501,7 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
     case CLIENT_FSM_ST_SEND_QUIT:
         log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         send_quit(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
-        log_i("%s", "SENT QUIT SUCCESS");
+        //log_i("%s", "SENT QUIT SUCCESS");
         break;
     default:
         break;
@@ -523,18 +523,31 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
 
     log_i("Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
     te_client_fsm_event event = check_server_code(server_response);
+    if (cur_mail_domain->state == CLIENT_FSM_ST_SEND_BODY && event != CLIENT_FSM_EV_ERROR)
+    {
+        remove_first(&cur_mail_domain->mails_list);
+        free(cur_mail_domain->buffer);
+        if (count(cur_mail_domain->mails_list) > 0)
+            cur_mail_domain->state = client_fsm_step(cur_mail_domain->state, CLIENT_FSM_EV_MULTIPLE_EMAILS, NULL);
+        else
+            cur_mail_domain->state = client_fsm_step(cur_mail_domain->state, event, NULL);
+    }
+    else
+        cur_mail_domain->state = client_fsm_step(cur_mail_domain->state, event, NULL);
 
-    if (cur_mail_domain->state == CLIENT_FSM_ST_DONE)
+    //log_i("NEW STATE Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
+    if (cur_mail_domain->state == CLIENT_FSM_ST_INIT)
     {
         close(cur_mail_domain->socket_fd);
         cur_mail_domain->in_process = false;
+        FD_CLR(cur_mail_domain->socket_fd, write_fds);
+    }
+    else
+    {
+        FD_SET(cur_mail_domain->socket_fd, write_fds);
     }
 
-    te_client_fsm_state new_state = client_fsm_step(cur_mail_domain->state, event, NULL);
-    cur_mail_domain->state = new_state;
-
     FD_CLR(cur_mail_domain->socket_fd, read_fds);
-    FD_SET(cur_mail_domain->socket_fd, write_fds);
 }
 
 // Ожидает заданное число секунд

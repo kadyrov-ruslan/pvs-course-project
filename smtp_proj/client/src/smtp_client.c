@@ -194,13 +194,12 @@ char *read_data_from_server(int socket_fd)
         log_e("%s","Could not read data from server");
         return NULL;
     }
-
-    log_i("Socket %d SERVER RESPONSE %s", socket_fd, msg);
     return msg;
 }
 
 te_client_fsm_event check_server_code(char *response)
 {
+    log_i("SERVER RESPONSE %s", response);
     char server_returned_code[4] = "   ";
     memcpy(server_returned_code, response, strlen(server_returned_code));
     int code = atoi(server_returned_code);
