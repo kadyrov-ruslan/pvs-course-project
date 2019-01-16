@@ -12,11 +12,10 @@
 
 struct client_conf
 {
-	int port;
 	int proc_cnt;
-
+    int retry_time;
+    int total_send_time;
 	log_level log_lvl;
-	const char *logs_dir;
 	const char *mail_dir;
 	const char *hostname;
 };

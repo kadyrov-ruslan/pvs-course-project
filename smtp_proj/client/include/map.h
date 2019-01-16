@@ -21,10 +21,11 @@ struct mail_domain_dscrptr
     te_client_fsm_state state;
     char *buffer;
 
-    int number_of_attempts;
     int retry_time;
-    int last_attempt_time;
     int total_send_time;
+
+    int number_of_attempts;
+    int last_attempt_time;
     int can_be_send;
     int curr_rcpts_index;
 

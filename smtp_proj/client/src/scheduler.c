@@ -2,7 +2,7 @@
 
 int ready_domains_count = 0; // юзается в чайлд процессах
 
-int run_client(int proc_num)
+int run_client(int proc_num, int total_send_time, int retry_time)
 {
     //create_child_proc(0, proc_num);
     struct mail_process_dscrptr mail_procs[proc_num];
@@ -13,7 +13,7 @@ int run_client(int proc_num)
         abort();
     }
     else if (mail_procs[0].pid == 0)
-        child_process_worker_start(6);
+        child_process_worker_start(6, total_send_time, retry_time);
     else
     {
         mail_procs[1].pid = fork();
@@ -23,7 +23,7 @@ int run_client(int proc_num)
             abort();
         }
         else if (mail_procs[1].pid == 0)
-            child_process_worker_start(7);
+            child_process_worker_start(7, total_send_time, retry_time);
         else
             master_process_worker_start(mail_procs, proc_num);
     }
@@ -31,7 +31,7 @@ int run_client(int proc_num)
     return 1;
 }
 
-void create_child_proc(int idx, int proc_num)
+void create_child_proc(int idx, int proc_num, int total_send_time, int retry_time)
 {
     int fork_res = fork();
     if (fork_res == -1)
@@ -40,12 +40,12 @@ void create_child_proc(int idx, int proc_num)
         abort();
     }
     else if (fork_res == 0)
-        child_process_worker_start(idx);
+        child_process_worker_start(idx, total_send_time, retry_time);
     else
     {
         if (idx < proc_num - 1)
         {
-            create_child_proc(idx + 1, proc_num);
+            create_child_proc(idx + 1, proc_num, total_send_time, retry_time);
         }
         else
         {
@@ -132,7 +132,7 @@ int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_
 }
 
 // Содержит бизнес логику, обрабатываемую дочерним процессом
-int child_process_worker_start(int proc_idx)
+int child_process_worker_start(int proc_idx, int total_send_time, int retry_time)
 {
     log_i("Worker for child proc `%d' successfully started.", getpid());
     struct mail_domain_dscrptr mail_domains_dscrptrs[MAX_MAIL_DOMAIN_NUM];
@@ -153,7 +153,7 @@ int child_process_worker_start(int proc_idx)
         if (msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, IPC_NOWAIT) != -1)
         {
             if (strlen(cur_msg.mtext) != 0)
-                register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds);
+                register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds, total_send_time, retry_time);
         }
 
         int maxfd = 0;
@@ -298,7 +298,7 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
 
 // Регистрирует новое письмо в массиве дескрипторов mail_domains_dscrptrs для последующей обработки
 int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs,
-                       fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
+                       fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, int total_send_time, int retry_time)
 {
     log_i("Registering new email %s", email_path);
     char *saved_email_path = malloc(strlen(email_path));
@@ -348,7 +348,10 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
 
         mail_domains_dscrptrs[ready_domains_count].domain_mail_server = cur_domain_srv;
-        mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_CONNECT;
+        mail_domains_dscrptrs[ready_domains_count].total_send_time = total_send_time;
+        mail_domains_dscrptrs[ready_domains_count].number_of_attempts = 0;
+        mail_domains_dscrptrs[ready_domains_count].last_attempt_time = 0;
+        mail_domains_dscrptrs[ready_domains_count].curr_rcpts_index = -1;
 
         int cur_domain_socket_fd = 0;
         if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -391,10 +394,11 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         log_i("Email domain %s is already registered", cur_email_domain);
         if (count(mail_domains_dscrptrs[found_domain_num].mails_list) == 0 || mail_domains_dscrptrs[found_domain_num].state == CLIENT_FSM_ST_INIT)
         {
-            mail_domains_dscrptrs[found_domain_num].state = CLIENT_FSM_ST_CONNECT;
+            mail_domains_dscrptrs[found_domain_num].state = client_fsm_step(mail_domains_dscrptrs[found_domain_num].state, CLIENT_FSM_EV_OK, NULL);
             int cur_domain_socket_fd = 0;
             if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             {
+                mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_ERROR, NULL);
                 log_e("Could not create socket to %s", cur_email_domain);
                 return -1;
             }
@@ -402,13 +406,16 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
             if (connect(cur_domain_socket_fd,
                         (struct sockaddr *)&mail_domains_dscrptrs[found_domain_num].domain_mail_server, sizeof(mail_domains_dscrptrs[found_domain_num].domain_mail_server)) < 0)
             {
+                mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_ERROR, NULL);
                 log_e("Connection to %s Failed ", cur_email_domain);
                 return -1;
             }
             else
             {
                 mail_domains_dscrptrs[found_domain_num].socket_fd = cur_domain_socket_fd;
-                mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_INIT;
+                mail_domains_dscrptrs[ready_domains_count].number_of_attempts = 0;
+                mail_domains_dscrptrs[ready_domains_count].last_attempt_time = 0;
+                mail_domains_dscrptrs[ready_domains_count].curr_rcpts_index = -1;
                 fcntl(cur_domain_socket_fd, F_SETFL, O_NONBLOCK);
                 log_i("Successfully connected to %s ", cur_email_domain);
 
@@ -543,4 +550,3 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
-

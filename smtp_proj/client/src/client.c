@@ -9,7 +9,9 @@
 #include <limits.h>
 
 #define CLIENT_USAGE "Usage: <client> <config_file>"
-#define PROC_CNT_DEFAULT 4
+#define PROC_CNT_DEFAULT 2
+#define RETRY_TIME_DEFAULT 10
+#define TOTAL_SEND_TIME_DEFAULT 120
 
 static config_t client_conf;
 static char hostname_sys[NAME_MAX];
@@ -28,7 +30,6 @@ __attribute__((destructor)) static void client_deinit(void)
 static int client_parse_config(void)
 {
     struct stat mail_dir_st;
-    struct stat logs_dir_st;
     int log_lvl;
     const char *user_group;
     struct passwd *pwd;
@@ -41,20 +42,14 @@ static int client_parse_config(void)
         return -1;
     }
 
-    if (config_setting_lookup_int(system, "port", &conf.port) != CONFIG_TRUE)
-    {
-        log_e("%s", "No `port' parametr in config");
-        return -1;
-    }
-
-    if (conf.port <= 0)
-    {
-        log_e("incorrect `port' (%d)", conf.port);
-        return -1;
-    }
-
     if (config_lookup_int(&client_conf, "proc_cnt", &conf.proc_cnt) != CONFIG_TRUE)
         conf.proc_cnt = PROC_CNT_DEFAULT;
+
+    if (config_lookup_int(&client_conf, "retry_time", &conf.retry_time) != CONFIG_TRUE)
+        conf.retry_time = RETRY_TIME_DEFAULT;
+
+    if (config_lookup_int(&client_conf, "proc_cnt", &conf.proc_cnt) != CONFIG_TRUE)
+        conf.total_send_time = TOTAL_SEND_TIME_DEFAULT;
 
     if (config_lookup_string(&client_conf, "hostname", &conf.hostname) != CONFIG_TRUE)
     {
@@ -75,18 +70,6 @@ static int client_parse_config(void)
     }
     conf.log_lvl = log_lvl;
     cur_lvl = log_lvl;
-
-    if (config_lookup_string(&client_conf, "logs_dir", &conf.logs_dir) != CONFIG_TRUE)
-    {
-        log_e("%s", "incorrect `logs_dir'");
-        return -1;
-    }
-
-    if (stat(conf.logs_dir, &logs_dir_st) != 0)
-    {
-        log_e("incorrect logs dir: %s", strerror(errno));
-        return -1;
-    }
 
     if (config_lookup_string(&client_conf, "mail_dir", &conf.mail_dir) != CONFIG_TRUE)
     {
@@ -128,12 +111,6 @@ static int client_parse_config(void)
         setuid(pwd->pw_uid) != 0)
     {
         log_e("unable to change to user and group from config: %s", strerror(errno));
-        return -1;
-    }
-
-    if (logs_dir_st.st_uid != pwd->pw_uid || logs_dir_st.st_gid != gr->gr_gid)
-    {
-        log_e("access denied to %s", conf.logs_dir);
         return -1;
     }
 
@@ -186,7 +163,7 @@ int main(int argc, char *argv[])
         else
         {
             read_config(argv);
-            run_client(conf.proc_cnt);
+            run_client(conf.proc_cnt, conf.total_send_time, conf.retry_time);
         }
     }
     return 0;
