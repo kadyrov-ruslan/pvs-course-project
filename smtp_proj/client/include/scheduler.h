@@ -14,6 +14,7 @@
 #include <sys/ipc.h> 
 #include <sys/msg.h> 
 #include <time.h>
+#include <sys/time.h>
 
 #define MAX_MAIL_DOMAIN_NUM 50
 #define RETRY_DIR_READ_TIME 25

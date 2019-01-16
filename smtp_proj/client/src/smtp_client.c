@@ -1,5 +1,74 @@
 #include "../include/smtp_client.h"
 
+
+int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
+{
+    struct timeval curr_time;
+    if (cur_mail_domain->last_attempt_time != 0)
+    {
+        gettimeofday(&curr_time, NULL);
+        int send_time = (int)curr_time.tv_sec - cur_mail_domain->last_attempt_time;
+        if (send_time >= cur_mail_domain->retry_time && cur_mail_domain->total_send_time <= cur_mail_domain->total_send_time)
+            cur_mail_domain->can_be_send = 1;
+        else if (cur_mail_domain->total_send_time > cur_mail_domain->total_send_time)
+        {
+            cur_mail_domain->can_be_send = -1;
+            return -3;
+        }
+        else
+            return -2;
+    }
+
+    int code = 0;
+    switch (cur_mail_domain->state)
+    {
+    case CLIENT_FSM_ST_SEND_HELO:
+        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_HELO WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);  
+        code = send_helo(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        break;
+
+    case CLIENT_FSM_ST_SEND_MAIL_FROM:
+        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_MAIL_FROM WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        cur_mail_domain->buffer = read_msg_file(cur_mail_domain->mails_list->val);
+        //printf("READ MSG %s\n", cur_mail_domain->buffer);
+        //char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
+        //printf("ENTRY NEW NAME %s\n", email_new_name);
+        // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
+        // if (ret == 0)
+        //     printf("File renamed successfully\n");
+        // else
+        //     printf("Error: unable to rename the file\n");
+        
+        code = send_mail_from(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
+        break;
+
+    case CLIENT_FSM_ST_SEND_RCPT_TO:
+        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_RCPT_TO WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        code = send_rcpt_to(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
+        cur_mail_domain->curr_rcpts_index++;
+        break;
+
+    case CLIENT_FSM_ST_SEND_DATA:
+        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_DATA WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        code = send_data_msg(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        break;
+
+    case CLIENT_FSM_ST_SEND_BODY:
+        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_BODY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        code = send_headers(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        break;
+
+    case CLIENT_FSM_ST_SEND_QUIT:
+        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+        code = send_quit(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        break;
+    default:
+        break;
+    }
+
+    return code;
+}
+
 // Отправляет сообщение HELO почтовому серверу
 int send_helo(int socket_fd, char *request_buf)
 {
@@ -117,38 +186,6 @@ void send_data(char *data, int to_read, int socket_fd)
         printf("%s\n", strerror(errno));
         exit(0);
     }
-}
-
-int get_server_response_code(int socket_fd, char *response_buf)
-{
-    bzero(response_buf, MAX_BUF_LEN);
-    read_fd_line(socket_fd, response_buf, MAX_BUF_LEN);
-    char server_returned_code[4] = "   ";
-    memcpy(server_returned_code, response_buf, strlen(server_returned_code));
-    int code = 0;
-    code = atoi(server_returned_code);
-    log_i("Socket %d SERVER code %d", socket_fd, code);
-    //printf("code number:%d\n", code);
-    return code;
-}
-
-//reads a line from fd to a char array
-int read_fd_line(int fd, char *line, int lim)
-{
-    int i;
-    char c;
-
-    i = 0;
-    while (--lim > 0 && read(fd, &c, 1) > 0 && c != '\n' && c != '\0')
-    {
-        line[i++] = c;
-    }
-    if (c == '\n')
-        line[i++] = c;
-    line[i] = '\0';
-    //printf("Socket %d SERVER RESPONSE %s \n", fd, line);
-    log_i("Socket %d SERVER RESPONSE %s", fd, line);
-    return i;
 }
 
 char *read_data_from_server(int socket_fd)

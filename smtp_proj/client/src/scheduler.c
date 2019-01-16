@@ -380,7 +380,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         add_first(&mail_domains_dscrptrs[ready_domains_count].mails_list, saved_email_path);
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[ready_domains_count].mails_list));
-        mail_domains_dscrptrs[ready_domains_count].in_process = true;
         free(cur_email_domain);
         free(saved_email_path);
         ready_domains_count++;
@@ -419,7 +418,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         }
 
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
-        mail_domains_dscrptrs[ready_domains_count].in_process = true;
         log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
         log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[found_domain_num].mails_list));
         free(cur_email_domain);
@@ -461,54 +459,39 @@ void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
 // Обрабатывает почтовый домен в случае, когда его сокет находится в write_fds
 void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
 {
-    switch (cur_mail_domain->state)
+    int code = send_msg_to_server(cur_mail_domain);
+    if (code == -1)
     {
-    case CLIENT_FSM_ST_SEND_HELO:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_HELO WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_helo(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
-        break;
-
-    case CLIENT_FSM_ST_SEND_MAIL_FROM:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_MAIL_FROM WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        cur_mail_domain->buffer = read_msg_file(cur_mail_domain->mails_list->val);
-        //printf("READ MSG %s\n", cur_mail_domain->buffer);
-        //char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
-        //printf("ENTRY NEW NAME %s\n", email_new_name);
-        // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
-        // if (ret == 0)
-        //     printf("File renamed successfully\n");
-        // else
-        //     printf("Error: unable to rename the file\n");
-
-        send_mail_from(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
-        break;
-
-    case CLIENT_FSM_ST_SEND_RCPT_TO:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_RCPT_TO WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_rcpt_to(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
-        break;
-
-    case CLIENT_FSM_ST_SEND_DATA:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_DATA WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_data_msg(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
-        break;
-
-    case CLIENT_FSM_ST_SEND_BODY:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_BODY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_headers(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
-        break;
-
-    case CLIENT_FSM_ST_SEND_QUIT:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-        send_quit(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
-        //log_i("%s", "SENT QUIT SUCCESS");
-        break;
-    default:
-        break;
+        log_e("Could not send data to server %s", cur_mail_domain->domain);
+        //close_socket(sockets[i].fd);
+        //replace_all_files_by_mx_record(sockets[i], "cur", "new");
+        //sockets = delete_struct_socket_info_by_index(sockets, &count, i);
     }
+    else if (code == -2)
+    {
+        FD_CLR(cur_mail_domain->socket_fd, write_fds);
+        FD_SET(cur_mail_domain->socket_fd, write_fds);
+    }
+    else if (code == -3)
+    {
+        log_i("Timeout. Failed to send message to server %s", cur_mail_domain->domain);
+        te_client_fsm_state new_state = client_fsm_step(cur_mail_domain->state, CLIENT_FSM_EV_RTIME_EXPIRED, NULL);
 
-    FD_CLR(cur_mail_domain->socket_fd, write_fds);
-    FD_SET(cur_mail_domain->socket_fd, read_fds);
+        if (new_state != CLIENT_FSM_ST_DONE)
+            log_e("%s", "FSM Wrong transition state");
+
+        FD_CLR(cur_mail_domain->socket_fd, write_fds);
+        //replace_file(sockets[i].messages[0].address, "cur", "error");
+        //sockets[i].messages = delete_item_by_index(sockets[i].messages, &sockets[i].msg_count, 0);
+
+        // if (count(cur_mail_domain->mails_list) > 0)
+        //     sockets = delete_struct_socket_info_by_index(sockets, &count, i);
+    }
+    else
+    {
+        FD_CLR(cur_mail_domain->socket_fd, write_fds);
+        FD_SET(cur_mail_domain->socket_fd, read_fds);
+    }
 }
 
 // Обрабатывает почтовый домен в случае, когда его сокет находится в read_fds
@@ -535,17 +518,13 @@ void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *rea
     else
         cur_mail_domain->state = client_fsm_step(cur_mail_domain->state, event, NULL);
 
-    //log_i("NEW STATE Socket %d of %s domain is in %d READ_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
     if (cur_mail_domain->state == CLIENT_FSM_ST_INIT)
     {
         close(cur_mail_domain->socket_fd);
-        cur_mail_domain->in_process = false;
         FD_CLR(cur_mail_domain->socket_fd, write_fds);
     }
     else
-    {
         FD_SET(cur_mail_domain->socket_fd, write_fds);
-    }
 
     FD_CLR(cur_mail_domain->socket_fd, read_fds);
 }
@@ -564,3 +543,4 @@ void shutdown_properly(int code)
     printf("Shutdown client properly.\n");
     exit(code);
 }
+

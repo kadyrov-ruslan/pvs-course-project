@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <resolv.h>
 #include <assert.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "../../common/include/dir_utils.h"
 #include "../../common/include/string_utils.h"
@@ -21,10 +23,9 @@
 
 char client_host_name[MAX_BUF_LEN];
 
+int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain);
 char *read_data_from_server(int socket_fd);
 te_client_fsm_event check_server_code(char *response);
-
-
 
 int send_helo(int socket_fd, char *request_buf);
 int send_mail_from(int socket_fd, char *msg, char *request_buf);
@@ -33,9 +34,6 @@ int send_data_msg(int socket_fd, char *request_buf);
 int send_headers(int socket_fd, char *request_buf);
 int send_msg_body(int socket_fd);
 int send_quit(int socket_fd, char *request_buf);
-
 void send_data(char *data, int to_read, int socket_fd);
-int get_server_response_code(int socket_fd, char *response_buf);
-int read_fd_line(int fd, char *line, int lim);
 
 #endif

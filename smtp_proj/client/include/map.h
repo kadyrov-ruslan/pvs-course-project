@@ -4,7 +4,6 @@
 #include <resolv.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include <stdbool.h>
 #include "list.h"
 #include "client-fsm.h"
 
@@ -18,10 +17,16 @@ struct mail_domain_dscrptr
     struct sockaddr_in domain_mail_server;
     int socket_fd;
     int mails_count;
-    bool in_process;
     struct node_t *mails_list;
     te_client_fsm_state state;
     char *buffer;
+
+    int number_of_attempts;
+    int retry_time;
+    int last_attempt_time;
+    int total_send_time;
+    int can_be_send;
+    int curr_rcpts_index;
 
     char request_buf[MAX_BUF_LEN];   // Буфер для отправляемых данных
     char response_buf[MAX_BUF_LEN];  // Буфер для ответа от сервера
