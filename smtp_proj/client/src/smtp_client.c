@@ -1,5 +1,22 @@
 #include "../include/smtp_client.h"
 
+int connect_to_mail_server(int socket_fd, struct sockaddr_in mail_server, char *email_domain)
+{
+    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        log_e("Could not create socket to %s", email_domain);
+        return -1;
+    }
+
+    if (connect(socket_fd, (struct sockaddr *)&mail_server, sizeof(mail_server)) < 0)
+    {
+        log_e("Connection to %s Failed ", email_domain);
+        return -1;
+    }
+
+    fcntl(socket_fd, F_SETFL, O_NONBLOCK);
+    return socket_fd;
+}
 
 int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
 {
@@ -20,15 +37,14 @@ int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
     }
 
     int code = 0;
+    log_i("Socket %d of %s domain is in %d WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain, cur_mail_domain->state);
     switch (cur_mail_domain->state)
     {
     case CLIENT_FSM_ST_SEND_HELO:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_HELO WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);  
         code = send_helo(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
     case CLIENT_FSM_ST_SEND_MAIL_FROM:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_MAIL_FROM WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         cur_mail_domain->buffer = read_msg_file(cur_mail_domain->mails_list->val);
         //printf("READ MSG %s\n", cur_mail_domain->buffer);
         //char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
@@ -43,23 +59,19 @@ int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
         break;
 
     case CLIENT_FSM_ST_SEND_RCPT_TO:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_RCPT_TO WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         code = send_rcpt_to(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
         cur_mail_domain->curr_rcpts_index++;
         break;
 
     case CLIENT_FSM_ST_SEND_DATA:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_DATA WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         code = send_data_msg(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
     case CLIENT_FSM_ST_SEND_BODY:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_BODY WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         code = send_headers(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
     case CLIENT_FSM_ST_SEND_QUIT:
-        log_i("Socket %d of %s domain is in CLIENT_FSM_ST_SEND_QUIT WRITE_FDS", cur_mail_domain->socket_fd, cur_mail_domain->domain);
         code = send_quit(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
     default:

@@ -23,6 +23,7 @@
 
 char client_host_name[MAX_BUF_LEN];
 
+int connect_to_mail_server(int socket_fd, struct sockaddr_in mail_server, char *email_domain);
 int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain);
 char *read_data_from_server(int socket_fd);
 te_client_fsm_event check_server_code(char *response);

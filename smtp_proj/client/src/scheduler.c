@@ -95,89 +95,6 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs, int pro
     return 1;
 }
 
-//todo доделать для аргумента proc_num
-// Возвращает индекс процесса, в который стоит отправить новое письмо на обработку
-int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs)
-{
-    for (int j = 0; j < 2; j++)
-    {
-        for (int i = 0; i < mail_procs[j].domains_count; i++)
-        {
-            // Если один из процессов уже занимается обработкой конкр.домена, скидываем письмо в него
-            if (strcmp(domain_name, mail_procs[j].domains[i]) == 0)
-            {
-                log_i("Process %d already handles %s domain. Domains count %d", j, domain_name, mail_procs[j].domains_count);
-                return j;
-            }
-        }
-    }
-
-    // Домен не найден ни в одном из процессов. Скидываем в процесс с меньшим числом доменов
-    if (mail_procs[0].domains_count > mail_procs[1].domains_count)
-    {
-        mail_procs[1].domains[mail_procs[1].domains_count] = malloc(strlen(domain_name));
-        strcpy(mail_procs[1].domains[mail_procs[1].domains_count], domain_name);
-        mail_procs[1].domains_count++;
-        log_i("Process 1 handles %s domain. Domains count %d", domain_name, mail_procs[1].domains_count);
-        return 1;
-    }
-    else
-    {
-        mail_procs[0].domains[mail_procs[0].domains_count] = malloc(strlen(domain_name));
-        strcpy(mail_procs[0].domains[mail_procs[0].domains_count], domain_name);
-        mail_procs[0].domains_count++;
-        log_i("Process 0 handles %s domain. Domains count %d", domain_name, mail_procs[1].domains_count);
-        return 0;
-    }
-}
-
-// Содержит бизнес логику, обрабатываемую дочерним процессом
-int child_process_worker_start(int proc_idx, int total_send_time, int retry_time)
-{
-    log_i("Worker for child proc `%d' successfully started.", getpid());
-    struct mail_domain_dscrptr mail_domains_dscrptrs[MAX_MAIL_DOMAIN_NUM];
-
-    fd_set read_fds;
-    fd_set write_fds;
-    fd_set except_fds;
-
-    FD_ZERO(&read_fds);
-    FD_ZERO(&write_fds);
-    FD_ZERO(&except_fds);
-
-    key_t key = ftok("/tmp", proc_idx);
-    int cur_proc_mq_id = msgget(key, 0644);
-    struct queue_msg cur_msg;
-    while (1)
-    {
-        if (msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, IPC_NOWAIT) != -1)
-        {
-            if (strlen(cur_msg.mtext) != 0)
-                register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds, total_send_time, retry_time);
-        }
-
-        int maxfd = 0;
-        for (int i = 0; i < ready_domains_count; i++)
-        {
-            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            if (cur_domain->socket_fd > maxfd)
-                maxfd = cur_domain->socket_fd;
-        }
-
-        // Проверяем, есть ли в каждом из доменов необработанные письма
-        for (int i = 0; i < ready_domains_count; i++)
-        {
-            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            if (count(cur_domain->mails_list) > 0 || cur_domain->state > CLIENT_FSM_ST_INIT)
-                process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
-        }
-        // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
-        usleep(100000);
-    }
-
-    return 1;
-}
-
 // Обновляет массив с описаниями зарегистрированных почтовых доменов
 // Каждый элемент содержит название домена, число новых писем для него и пути к письмам
 int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
@@ -296,6 +213,89 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
     return domains_count;
 }
 
+//todo доделать для аргумента proc_num
+// Возвращает индекс процесса, в который стоит отправить новое письмо на обработку
+int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs)
+{
+    for (int j = 0; j < 2; j++)
+    {
+        for (int i = 0; i < mail_procs[j].domains_count; i++)
+        {
+            // Если один из процессов уже занимается обработкой конкр.домена, скидываем письмо в него
+            if (strcmp(domain_name, mail_procs[j].domains[i]) == 0)
+            {
+                log_i("Process %d already handles %s domain. Domains count %d", j, domain_name, mail_procs[j].domains_count);
+                return j;
+            }
+        }
+    }
+
+    // Домен не найден ни в одном из процессов. Скидываем в процесс с меньшим числом доменов
+    if (mail_procs[0].domains_count > mail_procs[1].domains_count)
+    {
+        mail_procs[1].domains[mail_procs[1].domains_count] = malloc(strlen(domain_name));
+        strcpy(mail_procs[1].domains[mail_procs[1].domains_count], domain_name);
+        mail_procs[1].domains_count++;
+        log_i("Process 1 handles %s domain. Domains count %d", domain_name, mail_procs[1].domains_count);
+        return 1;
+    }
+    else
+    {
+        mail_procs[0].domains[mail_procs[0].domains_count] = malloc(strlen(domain_name));
+        strcpy(mail_procs[0].domains[mail_procs[0].domains_count], domain_name);
+        mail_procs[0].domains_count++;
+        log_i("Process 0 handles %s domain. Domains count %d", domain_name, mail_procs[1].domains_count);
+        return 0;
+    }
+}
+
+// Содержит бизнес логику, обрабатываемую дочерним процессом
+int child_process_worker_start(int proc_idx, int total_send_time, int retry_time)
+{
+    log_i("Worker for child proc `%d' successfully started.", getpid());
+    struct mail_domain_dscrptr mail_domains_dscrptrs[MAX_MAIL_DOMAIN_NUM];
+
+    fd_set read_fds;
+    fd_set write_fds;
+    fd_set except_fds;
+
+    FD_ZERO(&read_fds);
+    FD_ZERO(&write_fds);
+    FD_ZERO(&except_fds);
+
+    key_t key = ftok("/tmp", proc_idx);
+    int cur_proc_mq_id = msgget(key, 0644);
+    struct queue_msg cur_msg;
+    while (1)
+    {
+        if (msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, IPC_NOWAIT) != -1)
+        {
+            if (strlen(cur_msg.mtext) != 0)
+                register_new_email(cur_msg.mtext, mail_domains_dscrptrs, &read_fds, &write_fds, &except_fds, total_send_time, retry_time);
+        }
+
+        int maxfd = 0;
+        for (int i = 0; i < ready_domains_count; i++)
+        {
+            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
+            if (cur_domain->socket_fd > maxfd)
+                maxfd = cur_domain->socket_fd;
+        }
+
+        // Проверяем, есть ли в каждом из доменов необработанные письма
+        for (int i = 0; i < ready_domains_count; i++)
+        {
+            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
+            if (count(cur_domain->mails_list) > 0 || cur_domain->state > CLIENT_FSM_ST_INIT)
+                process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
+        }
+        // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
+        usleep(100000);
+    }
+
+    return 1;
+}
+
 // Регистрирует новое письмо в массиве дескрипторов mail_domains_dscrptrs для последующей обработки
 int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domains_dscrptrs,
                        fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, int total_send_time, int retry_time)
@@ -344,38 +344,26 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
 
         char *res = get_domain_mx_server_name(cur_email_domain);
         struct sockaddr_in cur_domain_srv = get_domain_server_info(res);
-        cur_domain_srv.sin_family = AF_INET; //AF_INIT means Internet doamin socket.
-        cur_domain_srv.sin_port = htons(25); //port 25=SMTP.
 
         mail_domains_dscrptrs[ready_domains_count].domain_mail_server = cur_domain_srv;
         mail_domains_dscrptrs[ready_domains_count].total_send_time = total_send_time;
-        mail_domains_dscrptrs[ready_domains_count].number_of_attempts = 0;
-        mail_domains_dscrptrs[ready_domains_count].last_attempt_time = 0;
-        mail_domains_dscrptrs[ready_domains_count].curr_rcpts_index = -1;
+        mail_domains_dscrptrs[ready_domains_count].retry_time = retry_time;
 
-        int cur_domain_socket_fd = 0;
-        if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_OK, NULL);
+        int cur_domain_socket_fd = connect_to_mail_server(0, cur_domain_srv, cur_email_domain);
+        if (cur_domain_socket_fd > -1)
         {
-            log_e("Could not create socket to %s", cur_email_domain);
-            return -1;
-        }
-
-        if (connect(cur_domain_socket_fd, (struct sockaddr *)&cur_domain_srv, sizeof(cur_domain_srv)) < 0)
-        {
-            log_e("Connection to %s Failed ", cur_email_domain);
-            return -1;
-        }
-        else
-        {
-            fcntl(cur_domain_socket_fd, F_SETFL, O_NONBLOCK);
-            log_i("Successfully connected to %s ", cur_email_domain);
-            log_i("Socket fd : %d", cur_domain_socket_fd);
+            log_i("Successfully connected to %s , socket fd %d", cur_email_domain, cur_domain_socket_fd);
             mail_domains_dscrptrs[ready_domains_count].socket_fd = cur_domain_socket_fd;
-            mail_domains_dscrptrs[ready_domains_count].state = CLIENT_FSM_ST_CONNECT;
+            mail_domains_dscrptrs[ready_domains_count].number_of_attempts = 0;
+            mail_domains_dscrptrs[ready_domains_count].last_attempt_time = 0;
+            mail_domains_dscrptrs[ready_domains_count].curr_rcpts_index = -1;
 
             FD_SET(cur_domain_socket_fd, read_fds);
             FD_SET(cur_domain_socket_fd, except_fds);
         }
+        else
+            mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_ERROR, NULL);
 
         mail_domains_dscrptrs[ready_domains_count].mails_list = malloc(sizeof(node_t));
         mail_domains_dscrptrs[ready_domains_count].mails_list->next = NULL;
@@ -395,33 +383,19 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         if (count(mail_domains_dscrptrs[found_domain_num].mails_list) == 0 || mail_domains_dscrptrs[found_domain_num].state == CLIENT_FSM_ST_INIT)
         {
             mail_domains_dscrptrs[found_domain_num].state = client_fsm_step(mail_domains_dscrptrs[found_domain_num].state, CLIENT_FSM_EV_OK, NULL);
-            int cur_domain_socket_fd = 0;
-            if ((cur_domain_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            int cur_domain_socket_fd = connect_to_mail_server(0, mail_domains_dscrptrs[found_domain_num].domain_mail_server, cur_email_domain);
+            if (cur_domain_socket_fd > -1)
             {
-                mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_ERROR, NULL);
-                log_e("Could not create socket to %s", cur_email_domain);
-                return -1;
-            }
-
-            if (connect(cur_domain_socket_fd,
-                        (struct sockaddr *)&mail_domains_dscrptrs[found_domain_num].domain_mail_server, sizeof(mail_domains_dscrptrs[found_domain_num].domain_mail_server)) < 0)
-            {
-                mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_ERROR, NULL);
-                log_e("Connection to %s Failed ", cur_email_domain);
-                return -1;
-            }
-            else
-            {
+                log_i("Successfully connected to %s , socket fd %d", cur_email_domain, cur_domain_socket_fd);
                 mail_domains_dscrptrs[found_domain_num].socket_fd = cur_domain_socket_fd;
                 mail_domains_dscrptrs[ready_domains_count].number_of_attempts = 0;
                 mail_domains_dscrptrs[ready_domains_count].last_attempt_time = 0;
                 mail_domains_dscrptrs[ready_domains_count].curr_rcpts_index = -1;
-                fcntl(cur_domain_socket_fd, F_SETFL, O_NONBLOCK);
-                log_i("Successfully connected to %s ", cur_email_domain);
-
                 FD_SET(cur_domain_socket_fd, read_fds);
                 FD_SET(cur_domain_socket_fd, except_fds);
             }
+            else
+                mail_domains_dscrptrs[ready_domains_count].state = client_fsm_step(mail_domains_dscrptrs[ready_domains_count].state, CLIENT_FSM_EV_ERROR, NULL);
         }
 
         add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
