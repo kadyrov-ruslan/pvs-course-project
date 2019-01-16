@@ -109,15 +109,7 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
         char *user_dir_name = user_dir->d_name;
         if (strcmp(user_dir_name, ".") != 0 && strcmp(user_dir_name, "..") != 0)
         {
-            char *user_dir_full_path = malloc(strlen(conf.mail_dir) + 2 + strlen(user_dir_name));
-            strcpy(user_dir_full_path, conf.mail_dir);
-            strcat(user_dir_full_path, user_dir_name);
-            strcat(user_dir_full_path, "/");
-
-            char *user_dir_new = malloc(strlen(user_dir_full_path) + 4);
-            strcpy(user_dir_new, user_dir_full_path);
-            strcat(user_dir_new, "new/");
-
+            char *user_dir_new = get_user_new_dir_full_path(conf.mail_dir, user_dir->d_name);
             DIR *new_dir = opendir(user_dir_new);
             if (new_dir == NULL)
                 log_e("%s", "Could not open NEW directory");
@@ -135,23 +127,8 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
                         strcpy(email_full_name, user_dir_new);
                         strcat(email_full_name, new_entry->d_name);
 
-                        char **tokens = str_split(new_entry->d_name, '.');
-                        char *first_part = tokens[2];
-                        char *second_part = tokens[3];
-
-                        char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
-                        strcpy(tmp_cur_mail_domain, first_part);
-                        strcat(tmp_cur_mail_domain, ".");
-                        strcat(tmp_cur_mail_domain, second_part);
-
-                        free(tokens[0]);
-                        free(tokens[1]);
-                        free(first_part);
-                        free(second_part);
-                        free(tokens[4]);
-                        free(tokens);
-
-                        tokens = str_split(tmp_cur_mail_domain, ',');
+                        char *tmp_cur_mail_domain = get_domain_name_from_email_full_path(new_entry->d_name);
+                        char **tokens = str_split(tmp_cur_mail_domain, ',');
                         //Проверяем, есть ли текущий домен массиве доменов
                         int found_domain_num = -1;
                         for (int i = 0; i < domains_count; i++)
@@ -204,7 +181,6 @@ int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
             else
                 log_i("Directory %s is empty", user_dir_new);
 
-            free(user_dir_full_path);
             free(user_dir_new);
             closedir(new_dir);
         }
@@ -304,23 +280,8 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
     char *saved_email_path = malloc(strlen(email_path));
     strcpy(saved_email_path, email_path);
 
-    char **tokens = str_split(email_path, '.');
-    char *first_part = tokens[2];
-    char *second_part = tokens[3];
-
-    char *tmp_cur_mail_domain = malloc(strlen(first_part) + strlen(second_part) + 1);
-    strcpy(tmp_cur_mail_domain, first_part);
-    strcat(tmp_cur_mail_domain, ".");
-    strcat(tmp_cur_mail_domain, second_part);
-
-    free(tokens[0]);
-    free(tokens[1]);
-    //free(first_part);
-    //free(second_part);
-    //free(tokens[4]);
-    free(tokens);
-
-    tokens = str_split(tmp_cur_mail_domain, ',');
+    char *tmp_cur_mail_domain = get_domain_name_from_email_full_path(email_path);
+    char **tokens = str_split(tmp_cur_mail_domain, ',');
     free(tmp_cur_mail_domain);
     char *cur_email_domain = tokens[0];
     //free(tokens[0]);

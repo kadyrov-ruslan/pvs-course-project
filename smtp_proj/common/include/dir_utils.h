@@ -11,7 +11,10 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include "string_utils.h"
 
 int count_dir_entries(const char *dirname);
+char *get_user_new_dir_full_path(const char *mail_dir, char *user_dir_name);
+char *get_domain_name_from_email_full_path(char *email_path);
 
 #endif
