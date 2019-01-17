@@ -1,25 +1,30 @@
-CC = gcc
-CFLAGS = -Wall -Werror -std=c99
+CC=gcc
+CFLAGS=-Wall -Werror -std=c99
+INC=-Iinclude -I../common/include
+LIB=-lconfig -lresolv
 
-INC = -I include -I ../common/include
-SRC_DIR = src
-OBJ_DIR = obj
-LIB = -lconfig
-TARGET = smtp_server
+OBJ_DIR=obj
+BIN_DIR=bin
+SOURCES=$(wildcard src/*.c)
+OBJECTS=$(SOURCES:.c=.o)
+TARGET=smtp_server
 
-SRC = server.c conn.c
-OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o, $(SRC:.c=.o))
+.PHONY: all
+all: mkdir | server
 
-all: server
-
+.PHONY: server
 server: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJECTS) $(LIB)
+	$(CC) $(OBJ_DIR)/*.o $(LIB) -o $(BIN_DIR)/$(TARGET)
 
-$(OBJECTS): $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c
-	mkdir -p $(OBJ_DIR)
-	$(CC) -lrt -c -o $@ $< $(CFLAGS) -I $(INC) $(LIB)
+.c.o:
+	$(CC) -c $(CFLAGS) $(INC) $< -o $(OBJ_DIR)/$(notdir $@)
 
+.PHONY: mkdir
+mkdir:
+	mkdir -p ./$(OBJ_DIR)
+	mkdir -p ./$(BIN_DIR)
+
+.PHONY: clean
 clean:
-	rm -f $(OBJECTS) $(TARGET)
-
-.PHONY: server clean
+	rm -rf $(OBJ_DIR)*
+	rm -rf $(BIN_DIR)*

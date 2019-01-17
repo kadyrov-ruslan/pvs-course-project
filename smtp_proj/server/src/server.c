@@ -1,21 +1,31 @@
-#include "../include/conn.h"
+#include "server.h"
 
-#include <libconfig.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <libconfig.h>
+
+#include "log.h"
 
 #define USAGE "Usage: smtp_server <config file>\n"
 #define PROCESS_DEFAULT 4 
 
-int config_connection_options(struct conn_opts* opts, const config_t* config);
+int server_opts_init(server_options_t *opts, const config_t *config);
 
-char* config_connection_error_text(int code);
+int log_opts_init(log_options_t *opts, const config_t *config);
 
-int main(int argc, char *argv[])
+char *server_opts_error(int code);
+
+char *log_opts_error(int code);
+
+int main(int argc, char **argv)
 {
+    int err;
     config_t config;
     config_init(&config);
-    struct conn_opts opts;
+    server_options_t opts;
+    log_options_t log_opts;
 
     if (argc != 2)
     {
@@ -23,33 +33,45 @@ int main(int argc, char *argv[])
         goto DESTRUCT;
     }
 
-    if (!config_read_file(&config, argv[1]))
+    if ((err = config_read_file(&config, argv[1])) == CONFIG_FALSE)
     {
         const char* error_file = config_error_file(&config);
         if (error_file == NULL)
             error_file = argv[1];
-        fprintf(stderr, "%s:%d - %s\n", error_file,
-                config_error_line(&config), config_error_text(&config));
+        fprintf(stderr, "%s:%d - %s\n", error_file, config_error_line(&config), config_error_text(&config));
         goto DESTRUCT;
     }
 
-    int result = config_connection_options(&opts, &config);
-    if (result != 0)
+    if ((err = server_opts_init(&opts, &config)) != 0)
     {
-        fprintf(stderr, "Parsing connection options: %s\n", config_connection_error_text(result));
+        fprintf(stderr, "Parsing server options: %s\n", server_opts_error(err));
         goto DESTRUCT;
     }
 
-    accept_conn(&opts);
+    if ((err = log_opts_init(&log_opts, &config)) != 0)
+    {
+        fprintf(stderr, "Parsing log options: %s\n", server_opts_error(err));
+        goto DESTRUCT;
+    }
+
+    if (fork() == 0)
+        logger_start(&log_opts);
+    else
+    {
+        log_message(INFO, "Server started");
+        sleep(5);
+    }
 
     config_destroy(&config);
     return EXIT_SUCCESS;
 
-    DESTRUCT: config_destroy(&config);
+DESTRUCT:
+    config_destroy(&config);
     return EXIT_FAILURE;
 }
 
-int config_connection_options(struct conn_opts* opts, const config_t* config) {
+int server_opts_init(server_options_t *opts, const config_t *config)
+{
     config_setting_t *system = config_lookup(config, "system");
 
     if (system == NULL)
@@ -72,8 +94,22 @@ int config_connection_options(struct conn_opts* opts, const config_t* config) {
     return 0;
 }
 
-char* config_connection_error_text(int code) {
-    switch (code) {
+int log_opts_init(log_options_t *opts, const config_t *config)
+{
+    config_setting_t *log = config_lookup(config, "log");
+
+    if (log == NULL)
+        return -10;
+    if (config_setting_lookup_string(log, "log_file", &opts->path) != CONFIG_TRUE)
+        return -20;
+
+    return 0;
+}
+
+char *server_opts_error(int code)
+{
+    switch (code)
+    {
         case 0: return "Normal execution";
         case -10: return "No {system} section in config";
         case -20: return "No {system.bind_ip} string value in config";
@@ -84,5 +120,16 @@ char* config_connection_error_text(int code) {
         case -60: return "No {system.process_count} int value in config";
         case -61: return "Invalid {system.process_count} value in config";
         default: return "Unrecognized error";
-    };
+    }
+}
+
+char *log_opts_error(int code)
+{
+    switch (code)
+    {
+        case 0: return "Normal execution";
+        case -10: return "No {log} section in config";
+        case -20: return "No {log.log_file} string value in config";
+        default: return "Unrecognized error";
+    }
 }
