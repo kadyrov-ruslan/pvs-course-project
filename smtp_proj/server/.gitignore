@@ -1,3 +1,5 @@
 # Server .gitignore
 obj/*
-smtp_server
+bin/*
+# Clang complete
+src/.clang_complete
