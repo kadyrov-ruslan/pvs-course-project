@@ -6,8 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <resolv.h>
-
-#include "../include/client_types.h"
+#include "client_types.h"
 
 #define N 4096
 

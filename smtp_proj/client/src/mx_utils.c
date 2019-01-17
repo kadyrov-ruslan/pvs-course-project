@@ -6,8 +6,6 @@ struct sockaddr_in get_domain_server_info(char *domain_name)
     struct hostent *mail_info = gethostbyname(domain_name);
     if (mail_info == NULL)
     {
-        //printf("%s\n", strerror(errno));
-        //exit(0);
         bzero(&mail_server, sizeof(mail_server));
         mail_server.sin_port = htons(0); //port 25=SMTP.
     }
