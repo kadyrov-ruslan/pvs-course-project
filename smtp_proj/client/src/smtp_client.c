@@ -54,7 +54,7 @@ int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
         //     printf("File renamed successfully\n");
         // else
         //     printf("Error: unable to rename the file\n");
-        
+
         code = send_mail_from(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
         break;
 
@@ -68,7 +68,7 @@ int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
         break;
 
     case CLIENT_FSM_ST_SEND_BODY:
-        code = send_headers(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
+        code = send_msg_body(cur_mail_domain->socket_fd, cur_mail_domain->request_buf);
         break;
 
     case CLIENT_FSM_ST_SEND_QUIT:
@@ -89,10 +89,8 @@ int send_helo(int socket_fd, char *request_buf)
     strcpy(request_buf, "HELO ");
     strcat(request_buf, client_host_name);
     strcat(request_buf, "\n");
-    send_data(request_buf, 0, socket_fd);
     log_i("Sending HELO: %s", request_buf);
-    bzero(request_buf, MAX_BUF_LEN);
-    return 1;
+    return send_data(request_buf, socket_fd);
 }
 
 // Отправляет сообщение MAIL FROM почтовому серверу
@@ -100,14 +98,13 @@ int send_mail_from(int socket_fd, char *msg, char *request_buf)
 {
     char *token;
     const char line[3] = "\n";
+    bzero(request_buf, MAX_BUF_LEN);
     sprintf(request_buf, "MAIL FROM: <");
     token = strtok(msg, line);
     strcat(request_buf, token);
     strcat(request_buf, ">\n");
     log_i("Sending MAIL FROM: %s", request_buf);
-    send_data(request_buf, 1, socket_fd);
-    bzero(request_buf, MAX_BUF_LEN);
-    return 1;
+    return send_data(request_buf, socket_fd);
 }
 
 // Отправляет сообщение RCPT TO почтовому серверу
@@ -115,31 +112,30 @@ int send_rcpt_to(int socket_fd, char *msg, char *request_buf)
 {
     char *token;
     const char line[3] = "\n";
+    bzero(request_buf, MAX_BUF_LEN);
     strcpy(request_buf, "RCPT TO:<");
     token = strtok(NULL, line);
     strcat(request_buf, token);
     strcat(request_buf, ">\n");
     log_i("Sending RCPT TO: %s", request_buf);
-    send_data(request_buf, 1, socket_fd);
-    bzero(request_buf, MAX_BUF_LEN);
-    return 1;
+    return send_data(request_buf, socket_fd);
 }
 
 // Отправляет сообщение DATA почтовому серверу
 int send_data_msg(int socket_fd, char *request_buf)
 {
+    bzero(request_buf, MAX_BUF_LEN);
     strcpy(request_buf, "DATA\n");
     log_i("Sending DATA message: %s", request_buf);
-    send_data(request_buf, 1, socket_fd);
-    bzero(request_buf, MAX_BUF_LEN);
-    return 1;
+    return send_data(request_buf, socket_fd);
 }
 
-// Отправляет заголовки сообщения почтовому серверу
-int send_headers(int socket_fd, char *request_buf)
+// Отправляет subject и тело сообщения почтовому серверу
+int send_msg_body(int socket_fd, char *request_buf)
 {
     char *token;
     const char line[3] = "\n";
+    bzero(request_buf, MAX_BUF_LEN);
     token = strtok(NULL, line);
     log_i("Sending EMAIL BODY: %s \n", request_buf);
     while (token != NULL)
@@ -149,55 +145,35 @@ int send_headers(int socket_fd, char *request_buf)
         bzero(request_buf, MAX_BUF_LEN);
         strcpy(request_buf, token);
         strcat(request_buf, "\n");
-        send_data(request_buf, 0, socket_fd);
-        //printf("SEND body: %s \n", request_buf);
+        send_data(request_buf, socket_fd);
         token = strtok(NULL, line);
     }
     bzero(request_buf, MAX_BUF_LEN);
-    //printf("SEND body: %s \n", "\r\n.\r\n");
-    send_data("\r\n.\r\n", 0, socket_fd);
-    return 1;
-}
-
-// Отправляет тело сообщения почтовому серверу
-int send_msg_body(int socket_fd)
-{
-    char *token;
-    const char line[3] = "\n";
-    while (token != NULL)
-    {
-        send_data(token, 0, socket_fd);
-        token = strtok(NULL, line);
-    }
-
-    //sending point to end body
-    log_i("%s", "Sending EMAIL BODY end \n");
-    send_data("\r\n.\r\n", 1, socket_fd);
-    return 1;
+    return send_data("\r\n.\r\n", socket_fd);
 }
 
 // Отправляет сообщение QUIT почтовому серверу
 int send_quit(int socket_fd, char *request_buf)
 {
-    strcpy(request_buf, "QUIT\n");
-    //printf("SEND QUIT: %s \n", buf);
-    log_i("%s", "Sending QUIT \n");
-    send_data(request_buf, 1, socket_fd);
     bzero(request_buf, MAX_BUF_LEN);
-    return 1;
+    strcpy(request_buf, "QUIT\n");
+    log_i("%s", "Sending QUIT \n");
+    return send_data(request_buf, socket_fd);
 }
 
 //Writes data to output socket
-void send_data(char *data, int to_read, int socket_fd)
+int send_data(char *data, int socket_fd)
 {
     int n = 0;
     //printf("SENDING DATA %s \n", data);
     n = write(socket_fd, data, strlen(data));
     if (n < 0)
     {
-        printf("%s\n", strerror(errno));
-        exit(0);
+        log_e("%s", "Unable to send data to mail server \n");
+        return -1;
     }
+
+    return 0;
 }
 
 char *read_data_from_server(int socket_fd)
@@ -220,7 +196,6 @@ char *read_data_from_server(int socket_fd)
             break;
 
         read_bytes += nread;
-
         if (read_bytes < msg_size)
         {
             strcat(msg, buf);
@@ -240,7 +215,7 @@ char *read_data_from_server(int socket_fd)
 
     if (nread < 0)
     {
-        log_e("%s","Could not read data from server");
+        log_e("%s", "Could not read data from server");
         return NULL;
     }
     return msg;
