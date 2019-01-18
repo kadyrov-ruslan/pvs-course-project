@@ -1,19 +1,22 @@
 #include "server.h"
 
+#include <grp.h>
+#include <pwd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <libconfig.h>
 
 #include "log.h"
+#include "conn.h"
 #include "config.h"
 #include "worker.h"
 
 #define USAGE "Usage: smtp_server <config file>\n"
-
-void handle_signal(int signal);
 
 pid_t log_pid;
 int worker_count;
@@ -24,8 +27,8 @@ int main(int argc, char **argv)
 {
     int err;
     config_t config;
-    server_options_t opts;
-    log_options_t log_opts;
+    server_opts_t opts;
+    log_opts_t log_opts;
     struct sigaction sa;
 
     config_init(&config);
@@ -47,19 +50,24 @@ int main(int argc, char **argv)
 
     if ((err = server_opts_init(&opts, &config)) != 0)
     {
-        fprintf(stderr, "Parsing server options: %s\n", server_opts_error(err));
+        fprintf(stderr, "Parsing server options: %s\n", server_opts_err(err));
         goto DESTRUCT;
     }
 
     if ((err = log_opts_init(&log_opts, &config)) != 0)
     {
-        fprintf(stderr, "Parsing log options: %s\n", server_opts_error(err));
+        fprintf(stderr, "Parsing log options: %s\n", server_opts_err(err));
         goto DESTRUCT;
     }
 
     cur_level = DEBUG;
+    if ((err = set_id(opts.user, opts.group)) != 0)
+    {
+        fprintf(stderr, "%s\n", set_id_err(err));
+        goto DESTRUCT;
+    }
 
-    switch ((log_pid = fork()))
+    switch (log_pid = fork())
     {
     case 0:
         logger_start(&log_opts);
@@ -89,8 +97,7 @@ int main(int argc, char **argv)
         }
 
         log_i("%s", "SMTP server started");
-        sleep(5);
-        handle_signal(SIGINT);
+        accept_conn(&opts);
     }
 
     free(worker_pids);
@@ -98,6 +105,8 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 
 DESTRUCT:
+    if (errno != 0)
+        fprintf(stderr, "%s\n", strerror(errno));
     free(worker_pids);
     config_destroy(&config);
     return EXIT_FAILURE;
@@ -115,5 +124,35 @@ void handle_signal(int signal)
             printf("SMTP server exiting\n");
             exit(0);
         }
+    }
+}
+
+int set_id(const char *user, const char *group)
+{
+    struct passwd *pwd;
+    if ((pwd = getpwnam(user)) == NULL)
+        return -10;
+
+    struct group *grp;
+    if ((grp = getgrnam(group)) == NULL)
+        return -20;
+
+    if (setuid(pwd->pw_uid) == -1)
+        return -11;
+    if (setgid(grp->gr_gid) == -1)
+        return -21;
+    return 0;
+}
+
+char *set_id_err(int code)
+{
+    switch (code)
+    {
+        case 0: return "Normal execution";
+        case -10: return "User does not exist";
+        case -11: return "Can't setuid() to user";
+        case -20: return "Group does not exist";
+        case -21: return "Can't setuid() to group";
+        default: return "Unrecognized error";
     }
 }

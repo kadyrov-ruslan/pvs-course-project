@@ -1,6 +1,6 @@
 #include "config.h"
 
-int server_opts_init(server_options_t *opts, const config_t *config)
+int server_opts_init(server_opts_t *opts, const config_t *config)
 {
     config_setting_t *system = config_lookup(config, "system");
 
@@ -24,7 +24,7 @@ int server_opts_init(server_options_t *opts, const config_t *config)
     return 0;
 }
 
-int log_opts_init(log_options_t *opts, const config_t *config)
+int log_opts_init(log_opts_t *opts, const config_t *config)
 {
     config_setting_t *log = config_lookup(config, "log");
 
@@ -36,7 +36,7 @@ int log_opts_init(log_options_t *opts, const config_t *config)
     return 0;
 }
 
-char *server_opts_error(int code)
+char *server_opts_err(int code)
 {
     switch (code)
     {
@@ -53,7 +53,7 @@ char *server_opts_error(int code)
     }
 }
 
-char *log_opts_error(int code)
+char *log_opts_err(int code)
 {
     switch (code)
     {

@@ -22,7 +22,7 @@ int qid, fd_log = 0;
 
 int save_message(const char *message, ssize_t size);
 
-int logger_start(log_options_t *opts)
+int logger_start(const log_opts_t *opts)
 {
   printf("Log path: %s\n", opts->path);
 

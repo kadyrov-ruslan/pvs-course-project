@@ -1,10 +1,10 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-typedef struct log_options_t
+typedef struct log_opts_t
 {
     const char *path;
-} log_options_t;
+} log_opts_t;
 
 typedef enum log_level
 {
@@ -16,7 +16,7 @@ typedef enum log_level
 
 extern log_level cur_level;
 
-int logger_start(log_options_t *opts);
+int logger_start(const log_opts_t *opts);
 int logger_stop(void);
 int log_message(log_level level, const char *message);
 
