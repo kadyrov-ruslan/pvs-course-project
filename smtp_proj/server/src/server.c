@@ -14,18 +14,20 @@
 #include "log.h"
 #include "conn.h"
 #include "config.h"
+#include "maildir.h"
 
 #define USAGE "Usage: smtp_server <config file>\n"
 
+server_opts_t opts;
+log_level cur_level;
+
 int worker_count;
 pid_t log_pid, *worker_pids = NULL;
-log_level cur_level;
 
 int main(int argc, char **argv)
 {
     int err;
     config_t config;
-    server_opts_t opts;
     log_opts_t log_opts;
 
     config_init(&config);
@@ -63,6 +65,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s\n", set_id_err(err));
         goto DESTRUCT;
     }
+
+    if ((err = maildir_init()) != 0)
+        goto DESTRUCT;
 
     switch (log_pid = fork())
     {

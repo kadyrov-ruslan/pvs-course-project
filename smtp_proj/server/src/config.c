@@ -20,6 +20,10 @@ int server_opts_init(server_opts_t *opts, const config_t *config)
         return -60;
     if (opts->process_count < 0 || opts->process_count > 1024)
         return -61;
+    if (config_setting_lookup_string(system, "domain", &opts->domain) != CONFIG_TRUE)
+        return -70;
+    if (config_setting_lookup_string(system, "maildir", &opts->maildir) != CONFIG_TRUE)
+        return -80;
 
     return 0;
 }
@@ -49,6 +53,8 @@ char *server_opts_err(int code)
         case -50: return "No {system.group} string value in config";
         case -60: return "No {system.process_count} int value in config";
         case -61: return "Invalid {system.process_count} value in config";
+        case -70: return "Invalid {system.domain} value in config";
+        case -80: return "Invalid {system.maildir} value in config";
         default: return "Unrecognized error";
     }
 }

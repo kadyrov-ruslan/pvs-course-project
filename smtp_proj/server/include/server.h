@@ -8,6 +8,8 @@ typedef struct
     const char *user;
     const char *group;
     int process_count;
+    const char *domain;
+    const char *maildir;
 } server_opts_t;
 
 /* Установка ID пользователя и группы во время выполнения */
