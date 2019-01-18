@@ -24,9 +24,6 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
 void init_mail_domain_conn_settings(struct mail_domain_dscrptr *mail_domains_dscrptrs, int cur_domain_idx,
                       char *cur_email_domain, fd_set *read_fds, fd_set *except_fds);
 
-void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
-                         fd_set *read_fds, fd_set *write_fds, fd_set *except_fds);
-
 void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds);
 
 void handle_read_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds);

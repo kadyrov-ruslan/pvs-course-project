@@ -177,7 +177,7 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
 
 // Инициализирует сетевые настройки домена - сокет, число подключений и проч
 void init_mail_domain_conn_settings(struct mail_domain_dscrptr *mail_domains_dscrptrs, int cur_domain_idx,
-                      char *cur_email_domain, fd_set *read_fds, fd_set *except_fds)
+                                    char *cur_email_domain, fd_set *read_fds, fd_set *except_fds)
 {
     mail_domains_dscrptrs[cur_domain_idx].state = client_fsm_step(mail_domains_dscrptrs[cur_domain_idx].state, CLIENT_FSM_EV_OK, NULL);
     int cur_domain_socket_fd = connect_to_mail_server(0, mail_domains_dscrptrs[cur_domain_idx].domain_mail_server, cur_email_domain);
@@ -195,36 +195,6 @@ void init_mail_domain_conn_settings(struct mail_domain_dscrptr *mail_domains_dsc
         mail_domains_dscrptrs[cur_domain_idx].state = client_fsm_step(mail_domains_dscrptrs[cur_domain_idx].state, CLIENT_FSM_EV_ERROR, NULL);
 }
 
-// Выполняет обработку нового письма домена
-void process_mail_domain(int maxfd, struct mail_domain_dscrptr *cur_mail_domain,
-                         fd_set *read_fds, fd_set *write_fds, fd_set *except_fds)
-{
-    int activity = select(maxfd + 1, read_fds, write_fds, except_fds, NULL);
-    switch (activity)
-    {
-    case -1:
-        log_e("%s", "select() returned -1");
-        shutdown_properly(EXIT_FAILURE);
-
-    case 0:
-        log_e("%s", "select() returned 0");
-        shutdown_properly(EXIT_FAILURE);
-
-    default:
-        if (FD_ISSET(cur_mail_domain->socket_fd, read_fds))
-            handle_read_socket(cur_mail_domain, read_fds, write_fds);
-
-        if (FD_ISSET(cur_mail_domain->socket_fd, write_fds))
-            handle_write_socket(cur_mail_domain, read_fds, write_fds);
-
-        if (FD_ISSET(cur_mail_domain->socket_fd, except_fds))
-        {
-            log_i("Socket %d of %s domain is in except_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-            shutdown_properly(EXIT_FAILURE);
-        }
-    }
-}
-
 // Обрабатывает почтовый домен в случае, когда его сокет находится в write_fds
 void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *read_fds, fd_set *write_fds)
 {
@@ -232,12 +202,13 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
     if (code == -1)
     {
         log_e("Could not send data to server %s", cur_mail_domain->domain);
-        //close_socket(sockets[i].fd);
+        close(cur_mail_domain->socket_fd);
         //replace_all_files_by_mx_record(sockets[i], "cur", "new");
         //sockets = delete_struct_socket_info_by_index(sockets, &count, i);
     }
     else if (code == -2)
     {
+        log_i("Timeout -2. Failed to send message to server %s", cur_mail_domain->domain);
         FD_CLR(cur_mail_domain->socket_fd, write_fds);
         FD_SET(cur_mail_domain->socket_fd, write_fds);
     }
