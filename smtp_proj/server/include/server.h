@@ -10,9 +10,6 @@ typedef struct
     int process_count;
 } server_opts_t;
 
-/* Обработка сигналов */
-void handle_signal(int signal);
-
 /* Установка ID пользователя и группы во время выполнения */
 int set_id(const char *user, const char *group);
 

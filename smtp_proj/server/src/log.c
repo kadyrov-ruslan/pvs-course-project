@@ -26,7 +26,7 @@ int save_message(const char *message, ssize_t size);
 
 int logger_start(const log_opts_t *opts)
 {
-    struct sigaction sa;
+    struct sigaction sa = {0};
     printf("Log path: %s\n", opts->path);
 
     if ((access(FD_QUEUE_PATH, F_OK)) < 0)
@@ -115,12 +115,10 @@ void log_handle_signal(int signal)
 {
     switch (signal)
     {
-        case SIGINT:
-        {
-            if (f_log != NULL)
-                fclose(f_log);
-            printf("%s\n", "Log process stopped");
-            exit(0);
-        }
+    case SIGINT:
+        if (f_log != NULL)
+            fclose(f_log);
+        printf("%s\n", "Log process stopped");
+        exit(0);
     }
 }

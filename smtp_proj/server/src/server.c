@@ -17,9 +17,8 @@
 
 #define USAGE "Usage: smtp_server <config file>\n"
 
-pid_t log_pid;
 int worker_count;
-pid_t *worker_pids = NULL;
+pid_t log_pid, *worker_pids = NULL;
 log_level cur_level;
 
 int main(int argc, char **argv)
@@ -28,7 +27,6 @@ int main(int argc, char **argv)
     config_t config;
     server_opts_t opts;
     log_opts_t log_opts;
-    struct sigaction sa;
 
     config_init(&config);
 
@@ -77,14 +75,6 @@ int main(int argc, char **argv)
         worker_count = opts.process_count;
         worker_pids = malloc(worker_count * sizeof(pid_t));
 
-        sa.sa_handler = &handle_signal;
-        sigfillset(&sa.sa_mask);
-        if (sigaction(SIGINT, &sa, NULL) == -1)
-        {
-            fprintf(stderr, "Can't handle SIGINT\n");
-            handle_signal(SIGINT);
-        }
-
         log_i("%s", "SMTP server booted");
         if ((err = accept_conn(&opts)) != 0)
             goto DESTRUCT;
@@ -106,21 +96,6 @@ DESTRUCT:
     free(worker_pids);
     config_destroy(&config);
     return EXIT_FAILURE;
-}
-
-void handle_signal(int signal)
-{
-    switch (signal)
-    {
-        case SIGINT:
-        {
-            kill(log_pid, SIGINT);
-            for (pid_t i = 0; i < worker_count; ++i)
-                kill(worker_pids[i], SIGINT);
-            printf("SMTP server exiting\n");
-            exit(0);
-        }
-    }
 }
 
 int set_id(const char *user, const char *group)

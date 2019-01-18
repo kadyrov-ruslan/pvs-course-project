@@ -1,7 +1,8 @@
-#include "../include/conn.h"
+#include "conn.h"
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -20,8 +21,13 @@ const char* def_ip = "127.0.0.1";
 const int def_port = 25;
 
 pid_t pid;
+int master;
+struct sigaction sa;
+extern int worker_count;
+extern pid_t log_pid, *worker_pids;
+
 int listener, new_fd, max_fd;
-fd_set master, read_fds, write_fds;
+fd_set active_read_fds, read_fds, write_fds;
 
 char buf[1024];
 size_t nbytes;
@@ -74,26 +80,20 @@ int accept_conn(const server_opts_t *opts) {
     log_i("SMTP server listen on %s:%d", opts->ip, opts->port);
 
     max_fd = listener;
-    FD_ZERO(&master);
+    FD_ZERO(&active_read_fds);
     FD_ZERO(&read_fds);
     FD_ZERO(&write_fds);
-    FD_SET(listener, &master);
+    FD_SET(listener, &active_read_fds);
 
-    for (pid_t i = 0; i < worker_count; ++i)
+    if (prefork() < 0)
     {
-        if ((worker_pids[i] = fork()) == 0)
-            break;
-        else if (worker_pids[i] == -1)
-        {
-            fprintf(stderr, "Can't fork worker process\n");
-            goto DESTRUCT;
-        }
+        fprintf(stderr, "Prefork error\n");
+        goto DESTRUCT;
     }
-    pid = getpid();
 
     while (1)
     {
-        read_fds = master;
+        read_fds = active_read_fds;
         if (select(max_fd + 1, &read_fds, NULL, NULL, &timeout) == -1)
         {
             fprintf(stderr, "Can't execute select syscall\n");
@@ -145,4 +145,59 @@ int socket_nonblock(int socket_fd) {
     if (fcntl(socket_fd, F_SETFL, flags) < 0)
         return -1;
     return 0;
+}
+
+int prefork()
+{
+    master = 1;
+    struct sigaction sa = {0};
+    for (pid_t i = 0; i < worker_count; ++i)
+    {
+        if ((worker_pids[i] = fork()) == 0)
+        {
+            master = 0;
+            sa.sa_handler = &handle_signal;
+            break;
+        }
+        else if (worker_pids[i] == -1)
+        {
+            fprintf(stderr, "Can't fork worker process\n");
+            return -1;
+        }
+    }
+
+    if (master == 1)
+        sa.sa_handler = &handle_signal_master;
+
+    sigfillset(&sa.sa_mask);
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        fprintf(stderr, "Can't handle SIGINT\n");
+        handle_signal(SIGINT);
+    }
+
+    pid = getpid();
+    return 0;
+}
+
+void handle_signal(int signal)
+{
+    switch (signal)
+    {
+    case SIGINT:
+        exit(0);
+    }
+}
+
+void handle_signal_master(int signal)
+{
+    switch (signal)
+    {
+    case SIGINT:
+        kill(log_pid, SIGINT);
+        for (pid_t i = 0; i < worker_count; ++i)
+            kill(worker_pids[i], SIGINT);
+        printf("SMTP server exiting\n");
+        exit(0);
+    }
 }

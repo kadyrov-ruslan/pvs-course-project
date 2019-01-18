@@ -23,7 +23,7 @@ int log_message(log_level level, const char *message);
 void log_handle_signal(int signal);
 
 #define LOG(lvl, format_, ...) {                    \
-    int size = 255;                                 \
+    int size = 1024;                                \
     char *prefix;                                   \
     if (lvl < cur_level) {                          \
         switch(lvl) {                               \

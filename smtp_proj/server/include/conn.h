@@ -21,4 +21,13 @@ int accept_conn(const server_opts_t *opts);
 /* Перевод сокета в неблокирующий режим */
 int socket_nonblock(int socket_fd);
 
+/* Создание процессов */
+int prefork();
+
+/* Обработка сигналов */
+void handle_signal(int signal);
+
+/* Обработка сигналов */
+void handle_signal_master(int signal);
+
 #endif // _CONN_H_

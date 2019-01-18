@@ -4,7 +4,7 @@
 typedef struct
 {
     long mtype;
-    char mtext[255];
+    char mtext[1024];
 } queue_msg_t;
 
 #endif // _QUEUE_H_

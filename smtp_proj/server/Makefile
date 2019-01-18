@@ -2,7 +2,6 @@ CC=gcc
 CFLAGS=-Wall -Werror -D_POSIX_C_SOURCE -std=c99
 INC=-Iinclude -I../common/include
 LIB=-lconfig -lpcre
-LIB_TEST=-lconfig -lpcre -lcunit
 
 OBJ_DIR=obj
 BIN_DIR=bin
@@ -26,7 +25,7 @@ tests: test_units
 
 .PHONY: test_units
 test_units: mkdir | $(OBJECTS_TEST)
-	$(CC) $(TEST_OBJECTS) $(LIB_TEST) -o $(BIN_DIR)/$(TARGET)_test
+	$(CC) $(TEST_OBJECTS) $(LIB) -lcunit -o $(BIN_DIR)/$(TARGET)_test
 	$(BIN_DIR)/$(TARGET)_test
 	rm $(BIN_DIR)/$(TARGET)_test
 
