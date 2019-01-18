@@ -136,6 +136,22 @@ DESTRUCT:
     return -1;
 }
 
+int close_conns()
+{
+    for (int i = 0; i <= max_fd; i++)
+    {
+        if (FD_ISSET(i, &read_fds))
+        {
+            char* buffer = "421 Server is not available";
+            if (send(i, buffer, strlen(buffer), 0) == -1)
+                log_e("%s", "Can't close connection");
+            close(i);
+        }
+    }
+
+    return 0;
+}
+
 int socket_nonblock(int socket_fd) {
     int flags;
     if ((flags = fcntl(socket_fd, F_GETFL, NULL)) < 0)
@@ -185,6 +201,7 @@ void handle_signal(int signal)
     switch (signal)
     {
     case SIGINT:
+        close_conns();
         exit(0);
     }
 }
@@ -197,6 +214,7 @@ void handle_signal_master(int signal)
         kill(log_pid, SIGINT);
         for (pid_t i = 0; i < worker_count; ++i)
             kill(worker_pids[i], SIGINT);
+        close_conns();
         printf("SMTP server exiting\n");
         exit(0);
     }
