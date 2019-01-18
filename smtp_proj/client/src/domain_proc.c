@@ -1,5 +1,7 @@
 #include "../include/domain_proc.h"
 
+extern int maxfd;
+
 // Обновляет массив с описаниями зарегистрированных почтовых доменов
 // Каждый элемент содержит название домена, число новых писем для него и пути к письмам
 int get_domains_mails(struct domain_mails *domains_mails, int domains_count)
@@ -135,6 +137,9 @@ int register_new_email(char *email_path, struct mail_domain_dscrptr *mail_domain
         mail_domains_dscrptrs[cur_domain_idx].retry_time = retry_time;
 
         init_mail_domain_conn_settings(mail_domains_dscrptrs, cur_domain_idx, cur_email_domain, read_fds, except_fds);
+
+        if (mail_domains_dscrptrs[cur_domain_idx].socket_fd > maxfd)
+            maxfd = mail_domains_dscrptrs[cur_domain_idx].socket_fd;
 
         mail_domains_dscrptrs[cur_domain_idx].mails_list = malloc(sizeof(node_t));
         mail_domains_dscrptrs[cur_domain_idx].mails_list->next = NULL;

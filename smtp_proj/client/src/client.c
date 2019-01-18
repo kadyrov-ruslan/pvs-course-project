@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #define CLIENT_USAGE "Usage: <client> <config_file>"
-#define PROC_CNT_DEFAULT 2
+#define PROC_CNT_DEFAULT 6
 #define RETRY_TIME_DEFAULT 10
 #define TOTAL_SEND_TIME_DEFAULT 120
 
@@ -48,7 +48,7 @@ static int client_parse_config(void)
     if (config_lookup_int(&client_conf, "retry_time", &conf.retry_time) != CONFIG_TRUE)
         conf.retry_time = RETRY_TIME_DEFAULT;
 
-    if (config_lookup_int(&client_conf, "proc_cnt", &conf.proc_cnt) != CONFIG_TRUE)
+    if (config_lookup_int(&client_conf, "total_send_time", &conf.total_send_time) != CONFIG_TRUE)
         conf.total_send_time = TOTAL_SEND_TIME_DEFAULT;
 
     if (config_lookup_string(&client_conf, "hostname", &conf.hostname) != CONFIG_TRUE)

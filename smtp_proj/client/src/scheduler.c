@@ -1,8 +1,10 @@
 #include "../include/scheduler.h"
 
+int maxfd = 0;
+
 int run_client(int proc_num, int total_send_time, int retry_time)
 {
-    //create_child_proc(0, proc_num);
+    //create_child_proc(proc_num, total_send_time, retry_time);
     struct mail_process_dscrptr mail_procs[proc_num];
     mail_procs[0].pid = fork();
     if (mail_procs[0].pid == -1)
@@ -29,28 +31,31 @@ int run_client(int proc_num, int total_send_time, int retry_time)
     return 1;
 }
 
-void create_child_proc(int idx, int proc_num, int total_send_time, int retry_time)
+void create_child_proc(int proc_num, int total_send_time, int retry_time)
 {
-    int fork_res = fork();
-    if (fork_res == -1)
+    printf("%d\n", proc_num);
+    int fork_res = -1;
+    int child_id = 0;
+    for (int i = 0; i < proc_num; ++i)
     {
-        log_e("Unable to fork() new process from %d", getpid());
-        abort();
+        fork_res = fork();
+        if (fork_res == 0)
+        {
+            child_id = i;
+            break;
+        }           
+        else if (fork_res == -1)
+        {
+            fprintf(stderr, "Can't fork worker process\n");
+        }
     }
-    else if (fork_res == 0)
-        child_process_worker_start(idx, total_send_time, retry_time);
+
+    if (child_id != 0)
+        child_process_worker_start(child_id, total_send_time, retry_time);
     else
     {
-        if (idx < proc_num - 1)
-        {
-            create_child_proc(idx + 1, proc_num, total_send_time, retry_time);
-        }
-        else
-        {
-            log_e("Unable to fork() new process from %d", getpid());
-            struct mail_process_dscrptr mail_procs[proc_num];
-            master_process_worker_start(mail_procs, proc_num);
-        }
+        struct mail_process_dscrptr mail_procs[proc_num];
+        master_process_worker_start(mail_procs, proc_num);
     }
 }
 
@@ -63,7 +68,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs, int pro
 
     for (int i = 0; i < proc_num; i++)
     {
-        key_t key = ftok("/tmp", 6 + i);
+        key_t key = ftok("/tmp", i);
         mail_procs[i].msg_queue_id = msgget(key, 0666 | IPC_CREAT);
         mail_procs[i].domains_count = 0;
     }
@@ -97,7 +102,7 @@ int master_process_worker_start(struct mail_process_dscrptr *mail_procs, int pro
 // Возвращает индекс процесса, в который стоит отправить новое письмо на обработку
 int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_dscrptr *mail_procs)
 {
-    for (int j = 0; j < 2; j++)
+    for (int j = 0; j < 6; j++)
     {
         for (int i = 0; i < mail_procs[j].domains_count; i++)
         {
@@ -147,6 +152,7 @@ int child_process_worker_start(int proc_idx, int total_send_time, int retry_time
     key_t key = ftok("/tmp", proc_idx);
     int cur_proc_mq_id = msgget(key, 0644);
     struct queue_msg cur_msg;
+
     while (1)
     {
         if (msgrcv(cur_proc_mq_id, &cur_msg, sizeof(cur_msg), 1, IPC_NOWAIT) != -1)
@@ -156,23 +162,37 @@ int child_process_worker_start(int proc_idx, int total_send_time, int retry_time
                                                          &read_fds, &write_fds, &except_fds, total_send_time, retry_time, ready_domains_count);
         }
 
-        int maxfd = 0;
-        for (int i = 0; i < ready_domains_count; i++)
+        int activity = select(maxfd + 1, &read_fds, &write_fds, &except_fds, NULL);
+        if (activity <= 0)
         {
-            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            if (cur_domain->socket_fd > maxfd)
-                maxfd = cur_domain->socket_fd;
+            log_e("%s", "select() returned -1");
+            shutdown_properly(EXIT_FAILURE);
         }
 
-        // Проверяем, есть ли в каждом из доменов необработанные письма
-        for (int i = 0; i < ready_domains_count; i++)
+        for (int i = 0; i < maxfd + 1; i++)
         {
-            struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
-            if (count(cur_domain->mails_list) > 0 || cur_domain->state > CLIENT_FSM_ST_INIT)
-                process_mail_domain(maxfd, cur_domain, &read_fds, &write_fds, &except_fds);
+            struct mail_domain_dscrptr *cur_mail_domain;
+            for (int j = 0; j < ready_domains_count; j++)
+            {
+                if (mail_domains_dscrptrs[j].socket_fd == i)
+                {
+                    cur_mail_domain = &mail_domains_dscrptrs[j];
+                    break;
+                }
+            }
+
+            if (FD_ISSET(i, &read_fds))
+                handle_read_socket(cur_mail_domain, &read_fds, &write_fds);
+
+            if (FD_ISSET(i, &write_fds))
+                handle_write_socket(cur_mail_domain, &read_fds, &write_fds);
+
+            if (FD_ISSET(i, &except_fds))
+            {
+                log_i("Socket %d of %s domain is in except_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
+                shutdown_properly(EXIT_FAILURE);
+            }
         }
-        // задержка 50 мс - при задержкке цикла < 50мс обработка зависает после BODY_MSG WRITE_FDS
-        usleep(100000);
     }
 
     return 1;

@@ -21,7 +21,7 @@
 #define RETRY_DIR_READ_TIME 25
 
 int run_client(int proc_num, int total_send_time, int retry_time);
-void create_child_proc(int idx, int proc_num, int total_send_time, int retry_time);
+void create_child_proc(int proc_num, int total_send_time, int retry_time);
 
 int master_process_worker_start(struct mail_process_dscrptr *mail_procs, int proc_num);
 int child_process_worker_start(int proc_idx, int total_send_time, int retry_time);

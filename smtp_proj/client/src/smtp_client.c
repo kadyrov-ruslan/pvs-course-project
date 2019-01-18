@@ -60,7 +60,7 @@ int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
 
     case CLIENT_FSM_ST_SEND_RCPT_TO:
         code = send_rcpt_to(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
-        cur_mail_domain->curr_rcpts_index++;
+        //cur_mail_domain->curr_rcpts_index++;
         break;
 
     case CLIENT_FSM_ST_SEND_DATA:
