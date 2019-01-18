@@ -14,7 +14,6 @@ int pattern_init()
     _patterns[PT_MAIL] = "^[Mm][Aa][Ii][Ll]\\s[Ff][Rr][Oo][Mm]:\\s?[<]?(.+?)[>]?[\\r\\n]?$";
     _patterns[PT_RCPT] = "^[Rr][Cc][Pp][Tt]\\s[Tt][Oo]:\\s?[<]?(.+?)[>]?[\\r\\n]?$";
     _patterns[PT_DATA] = "^[Dd][Aa][Tt][Aa][\\r\\n]?$";
-    _patterns[PT_DATA_RECV] = "(.+?)";
     _patterns[PT_DATA_END] = "^[\\r\\n]?[.][\\r\\n]?$";
     _patterns[PT_EMAIL] = "^(.+?)@(.+?)$";
 

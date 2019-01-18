@@ -14,7 +14,6 @@
 #include "log.h"
 #include "conn.h"
 #include "config.h"
-#include "worker.h"
 
 #define USAGE "Usage: smtp_server <config file>\n"
 

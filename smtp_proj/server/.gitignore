@@ -3,3 +3,4 @@ obj/*
 bin/*
 # Clang complete
 src/.clang_complete
+test/.clang_complete

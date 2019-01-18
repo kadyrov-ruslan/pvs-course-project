@@ -14,7 +14,6 @@ typedef enum {
     PT_MAIL,
     PT_RCPT,
     PT_DATA,
-    PT_DATA_RECV,
     PT_DATA_END,
     PT_EMAIL,
 
