@@ -100,7 +100,6 @@ int get_mail_proc_idx(char *domain_name, int domains_count, struct mail_process_
 int child_process_worker_start(int proc_idx, int total_send_time, int retry_time)
 {
     log_i("Worker for child proc `%d' successfully started.", getpid());
-    log_i("proc idx `%d' .", proc_idx);
     struct mail_domain_dscrptr mail_domains_dscrptrs[MAX_MAIL_DOMAIN_NUM];
     int ready_domains_count = 0;
 
