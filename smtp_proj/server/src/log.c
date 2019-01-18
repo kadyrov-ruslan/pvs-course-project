@@ -89,12 +89,11 @@ int save_message(const char *message, ssize_t size)
   now = localtime(&timenow);
   sprintf(timestr, "%d-%02d-%02dT%02d:%02d:%02d", now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 
-  const int log_msg_size = 20 + 2 + size;
+  const int log_msg_size = 20 + 1 + size;
   char *log_msg = malloc(log_msg_size);
   strcpy(log_msg, timestr);
   strcat(log_msg, " ");
   strcat(log_msg, message);
-  strcat(log_msg, "\n");
 
   write(fd_log, log_msg, log_msg_size);
   free(log_msg);

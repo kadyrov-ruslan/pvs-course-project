@@ -1,5 +1,4 @@
 #include "../include/conn.h"
-#include "../include/pool.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +95,7 @@ int accept_conn(struct conn_opts *options) {
 
     return 0;
 
-    DESTRUCT: close(listener);
+DESTRUCT:
+    close(listener);
     return -1;
 }

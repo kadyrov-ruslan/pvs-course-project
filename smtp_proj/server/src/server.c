@@ -1,31 +1,34 @@
 #include "server.h"
 
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <libconfig.h>
 
 #include "log.h"
+#include "config.h"
+#include "worker.h"
 
 #define USAGE "Usage: smtp_server <config file>\n"
-#define PROCESS_DEFAULT 4 
 
-int server_opts_init(server_options_t *opts, const config_t *config);
+void handle_signal(int signal);
 
-int log_opts_init(log_options_t *opts, const config_t *config);
-
-char *server_opts_error(int code);
-
-char *log_opts_error(int code);
+pid_t log_pid;
+int worker_count;
+pid_t *worker_pids = NULL;
+log_level cur_level;
 
 int main(int argc, char **argv)
 {
     int err;
     config_t config;
-    config_init(&config);
     server_options_t opts;
     log_options_t log_opts;
+    struct sigaction sa;
+
+    config_init(&config);
 
     if (argc != 2)
     {
@@ -54,82 +57,63 @@ int main(int argc, char **argv)
         goto DESTRUCT;
     }
 
-    if (fork() == 0)
-        logger_start(&log_opts);
-    else
+    cur_level = DEBUG;
+
+    switch ((log_pid = fork()))
     {
-        log_message(INFO, "Server started");
+    case 0:
+        logger_start(&log_opts);
+    case -1:
+        fprintf(stderr, "Can't fork log process\n");
+        goto DESTRUCT;
+    default:
+        worker_pids = malloc(opts.process_count * sizeof(pid_t));
+        for (pid_t i = 0; i < opts.process_count; ++i)
+        {
+            if ((worker_pids[i] = fork()) == 0)
+                worker_run();
+            else if (worker_pids[i] == -1)
+            {
+                fprintf(stderr, "Can't fork worker process\n");
+                goto DESTRUCT;
+            }
+        }
+
+        sa.sa_handler = &handle_signal;
+        sigfillset(&sa.sa_mask);
+
+        if (sigaction(SIGINT, &sa, NULL) == -1)
+        {
+            fprintf(stderr, "Can't handle SIGINT\n");
+            handle_signal(SIGINT);
+        }
+
+        log_i("%s", "SMTP server started");
         sleep(5);
+        handle_signal(SIGINT);
     }
 
+    free(worker_pids);
     config_destroy(&config);
     return EXIT_SUCCESS;
 
 DESTRUCT:
+    free(worker_pids);
     config_destroy(&config);
     return EXIT_FAILURE;
 }
 
-int server_opts_init(server_options_t *opts, const config_t *config)
+void handle_signal(int signal)
 {
-    config_setting_t *system = config_lookup(config, "system");
-
-    if (system == NULL)
-        return -10;
-    if (config_setting_lookup_string(system, "bind_ip", &opts->ip) != CONFIG_TRUE)
-        return -20;
-    if (config_setting_lookup_int(system, "port", &opts->port) != CONFIG_TRUE)
-        return -30;
-    if (opts->port < 0 || opts->port > 65535)
-        return -31;
-    if (config_setting_lookup_string(system, "user", &opts->user) != CONFIG_TRUE)
-        return -40;
-    if (config_setting_lookup_string(system, "group", &opts->group) != CONFIG_TRUE)
-        return -50;
-    if (config_setting_lookup_int(system, "process_count", &opts->process_count) != CONFIG_TRUE)
-        return -60;
-    if (opts->process_count < 0 || opts->process_count > 1024)
-        return -61;
-
-    return 0;
-}
-
-int log_opts_init(log_options_t *opts, const config_t *config)
-{
-    config_setting_t *log = config_lookup(config, "log");
-
-    if (log == NULL)
-        return -10;
-    if (config_setting_lookup_string(log, "log_file", &opts->path) != CONFIG_TRUE)
-        return -20;
-
-    return 0;
-}
-
-char *server_opts_error(int code)
-{
-    switch (code)
+    switch (signal)
     {
-        case 0: return "Normal execution";
-        case -10: return "No {system} section in config";
-        case -20: return "No {system.bind_ip} string value in config";
-        case -30: return "No {system.port} integer value in config";
-        case -31: return "Invalid {system.port} value in config";
-        case -40: return "No {system.user} string value in config";
-        case -50: return "No {system.group} string value in config";
-        case -60: return "No {system.process_count} int value in config";
-        case -61: return "Invalid {system.process_count} value in config";
-        default: return "Unrecognized error";
-    }
-}
-
-char *log_opts_error(int code)
-{
-    switch (code)
-    {
-        case 0: return "Normal execution";
-        case -10: return "No {log} section in config";
-        case -20: return "No {log.log_file} string value in config";
-        default: return "Unrecognized error";
+        case SIGINT:
+        {
+            kill(log_pid, SIGINT);
+            for (pid_t i = 0; i < worker_count; ++i)
+                kill(worker_pids[i], SIGINT);
+            printf("SMTP server exiting\n");
+            exit(0);
+        }
     }
 }
