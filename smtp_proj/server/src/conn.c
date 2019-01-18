@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "log.h"
+#include "protocol.h"
 
 #define QUEUE_LEN 1
 
@@ -31,15 +32,14 @@ fd_set active_read_fds, read_fds, write_fds;
 
 char buf[1024];
 size_t nbytes;
+struct timeval timeout;
+struct sockaddr_in client_addr;
+uint32_t addr_size = sizeof(client_addr);
 
-int accept_conn(const server_opts_t *opts) {
+int conn_accept(const server_opts_t *opts) {
     const char* ip_addr = strlen(opts->ip) == 0 ? def_ip : opts->ip;
     const int port = opts->port == 0 ? def_port : opts->port;
     struct sockaddr_in server_addr;
-    struct timeval timeout;
-
-    struct sockaddr_in client_addr;
-    uint32_t addr_size = sizeof(client_addr);
 
     timeout.tv_sec = 0;
     timeout.tv_usec = 10;
@@ -93,40 +93,8 @@ int accept_conn(const server_opts_t *opts) {
 
     while (1)
     {
-        read_fds = active_read_fds;
-        if (select(max_fd + 1, &read_fds, NULL, NULL, &timeout) == -1)
-        {
-            fprintf(stderr, "Can't execute select syscall\n");
-            goto DESTRUCT;
-        }
-
-        for (int i = 0; i <= max_fd; ++i)
-            if (FD_ISSET(i, &read_fds))
-            {
-                if (i == listener)
-                {
-                    if ((new_fd = accept(listener, (struct sockaddr *)&client_addr, &addr_size)) < 0)
-                    {
-                        log_e("(%d) %s", pid, "Can't accept new connection");
-                    }
-                    else
-                    {
-                        log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
-
-                        if (new_fd > max_fd)
-                            max_fd = new_fd;
-                        FD_SET(new_fd, &read_fds);
-                    }
-                }
-                else {
-                    if ((nbytes = recv(i, &buf, 1024, 0)) <= 0)
-                    {
-                        close(i);
-                        FD_CLR(i, &read_fds);
-                    }
-                    send(i, buf, nbytes, 0);
-                }
-            }
+        conn_update();
+        protocol_update();
     }
 
     return 0;
@@ -136,18 +104,59 @@ DESTRUCT:
     return -1;
 }
 
-int close_conns()
+int conn_update()
+{
+    read_fds = active_read_fds;
+    if (select(max_fd + 1, &read_fds, NULL, NULL, &timeout) == -1)
+    {
+        fprintf(stderr, "Can't execute select syscall\n");
+        return -1;
+    }
+
+    for (int i = 0; i <= max_fd; ++i)
+        if (FD_ISSET(i, &read_fds))
+        {
+            if (i == listener)
+            {
+                if ((new_fd = accept(listener, (struct sockaddr *)&client_addr, &addr_size)) < 0)
+                {
+                    log_e("(%d) %s", pid, "Can't accept new connection");
+                }
+                else
+                {
+                    log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+                    socket_nonblock(new_fd);
+
+                    if (new_fd > max_fd)
+                        max_fd = new_fd;
+                    FD_SET(new_fd, &read_fds);
+                }
+            }
+            else {
+                if ((nbytes = recv(i, &buf, 1024, 0)) <= 0)
+                {
+                    close(i);
+                    FD_CLR(i, &read_fds);
+                }
+                conn_opts_t *conn = connections[i];
+                strcpy(conn->recv_buf, buf);
+                memset(buf, 0, strlen(buf));
+            }
+        }
+
+    return 0;
+}
+
+int conn_destroy()
 {
     for (int i = 0; i <= max_fd; i++)
-    {
-        if (FD_ISSET(i, &read_fds))
+        if (FD_ISSET(i, &read_fds) || FD_ISSET(i, &write_fds))
         {
             char* buffer = "421 Server is not available";
             if (send(i, buffer, strlen(buffer), 0) == -1)
                 log_e("%s", "Can't close connection");
             close(i);
         }
-    }
 
     return 0;
 }
@@ -201,7 +210,7 @@ void handle_signal(int signal)
     switch (signal)
     {
     case SIGINT:
-        close_conns();
+        conn_destroy();
         exit(0);
     }
 }
@@ -214,7 +223,7 @@ void handle_signal_master(int signal)
         kill(log_pid, SIGINT);
         for (pid_t i = 0; i < worker_count; ++i)
             kill(worker_pids[i], SIGINT);
-        close_conns();
+        conn_destroy();
         printf("SMTP server exiting\n");
         exit(0);
     }

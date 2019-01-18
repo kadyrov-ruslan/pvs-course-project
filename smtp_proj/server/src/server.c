@@ -15,6 +15,7 @@
 #include "conn.h"
 #include "config.h"
 #include "maildir.h"
+#include "protocol.h"
 
 #define USAGE "Usage: smtp_server <config file>\n"
 
@@ -66,6 +67,9 @@ int main(int argc, char **argv)
         goto DESTRUCT;
     }
 
+    if ((err = protocol_init()) != 0)
+        goto DESTRUCT;
+
     if ((err = maildir_init()) != 0)
         goto DESTRUCT;
 
@@ -81,7 +85,7 @@ int main(int argc, char **argv)
         worker_pids = malloc(worker_count * sizeof(pid_t));
 
         log_i("%s", "SMTP server booted");
-        if ((err = accept_conn(&opts)) != 0)
+        if ((err = conn_accept(&opts)) != 0)
             goto DESTRUCT;
     }
 

@@ -23,10 +23,15 @@ typedef struct
     letter_t *letter;
 } conn_opts_t;
 
-int accept_conn(const server_opts_t *opts);
+conn_opts_t *connections[1024];
+
+int conn_accept(const server_opts_t *opts);
+
+/* Обновление соединений */
+int conn_update();
 
 /* Закрытие всех соединений с кодом 421 */
-int close_conns();
+int conn_destroy();
 
 /* Перевод сокета в неблокирующий режим */
 int socket_nonblock(int socket_fd);
