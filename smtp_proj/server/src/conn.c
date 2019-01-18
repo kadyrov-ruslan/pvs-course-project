@@ -19,12 +19,12 @@
 const char* def_ip = "127.0.0.1";
 const int def_port = 25;
 
+pid_t pid;
 int listener, new_fd, max_fd;
 fd_set master, read_fds, write_fds;
 
 char buf[1024];
 size_t nbytes;
-
 
 int accept_conn(const server_opts_t *opts) {
     const char* ip_addr = strlen(opts->ip) == 0 ? def_ip : opts->ip;
@@ -79,6 +79,18 @@ int accept_conn(const server_opts_t *opts) {
     FD_ZERO(&write_fds);
     FD_SET(listener, &master);
 
+    for (pid_t i = 0; i < worker_count; ++i)
+    {
+        if ((worker_pids[i] = fork()) == 0)
+            break;
+        else if (worker_pids[i] == -1)
+        {
+            fprintf(stderr, "Can't fork worker process\n");
+            goto DESTRUCT;
+        }
+    }
+    pid = getpid();
+
     while (1)
     {
         read_fds = master;
@@ -95,11 +107,11 @@ int accept_conn(const server_opts_t *opts) {
                 {
                     if ((new_fd = accept(listener, (struct sockaddr *)&client_addr, &addr_size)) < 0)
                     {
-                        log_e("%s", "Can't accept new connection");
+                        log_e("(%d) %s", pid, "Can't accept new connection");
                     }
                     else
                     {
-                        log_i("Accept connection from %s:%d", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+                        log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
 
                         if (new_fd > max_fd)
                             max_fd = new_fd;

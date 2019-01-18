@@ -1,13 +1,13 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
-typedef struct server_opts_t
+typedef struct
 {
-  const char *ip;
-  int port;
-  const char *user;
-  const char *group;
-  int process_count;
+    const char *ip;
+    int port;
+    const char *user;
+    const char *group;
+    int process_count;
 } server_opts_t;
 
 /* Обработка сигналов */

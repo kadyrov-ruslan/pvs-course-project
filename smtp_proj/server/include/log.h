@@ -1,12 +1,12 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-typedef struct log_opts_t
+typedef struct
 {
     const char *path;
 } log_opts_t;
 
-typedef enum log_level
+typedef enum
 {
     INFO,
     WARN,

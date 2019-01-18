@@ -75,17 +75,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Can't fork log process\n");
         goto DESTRUCT;
     default:
-        worker_pids = malloc(opts.process_count * sizeof(pid_t));
-        for (pid_t i = 0; i < opts.process_count; ++i)
-        {
-            if ((worker_pids[i] = fork()) == 0)
-                worker_run();
-            else if (worker_pids[i] == -1)
-            {
-                fprintf(stderr, "Can't fork worker process\n");
-                goto DESTRUCT;
-            }
-        }
+        worker_count = opts.process_count;
+        worker_pids = malloc(worker_count * sizeof(pid_t));
 
         sa.sa_handler = &handle_signal;
         sigfillset(&sa.sa_mask);

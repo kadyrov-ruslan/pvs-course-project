@@ -4,9 +4,16 @@
 #include <server.h> 
 #include <netinet/in.h>
 
-typedef struct conn_opts_t {
+extern int worker_count;
+extern pid_t *worker_pids;
+
+typedef struct
+{
+    const short sin_family;
     const struct sockaddr_in ipv4;
     const struct sockaddr_in6 ipv6;
+    char send_buf[1024];
+    char recv_buf[1024];
 } conn_opts_t;
 
 int accept_conn(const server_opts_t *opts);
