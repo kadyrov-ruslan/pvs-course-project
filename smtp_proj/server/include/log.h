@@ -19,6 +19,8 @@ extern log_level cur_level;
 int logger_start(const log_opts_t *opts);
 int logger_stop(void);
 int log_message(log_level level, const char *message);
+/* Обработка сигналов */
+void log_handle_signal(int signal);
 
 #define LOG(lvl, format_, ...) {                    \
     int size = 255;                                 \

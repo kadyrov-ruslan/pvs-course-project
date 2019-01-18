@@ -89,15 +89,15 @@ int main(int argc, char **argv)
 
         sa.sa_handler = &handle_signal;
         sigfillset(&sa.sa_mask);
-
         if (sigaction(SIGINT, &sa, NULL) == -1)
         {
             fprintf(stderr, "Can't handle SIGINT\n");
             handle_signal(SIGINT);
         }
 
-        log_i("%s", "SMTP server started");
-        accept_conn(&opts);
+        log_i("%s", "SMTP server booted");
+        if ((err = accept_conn(&opts)) != 0)
+            goto DESTRUCT;
     }
 
     free(worker_pids);
@@ -107,6 +107,12 @@ int main(int argc, char **argv)
 DESTRUCT:
     if (errno != 0)
         fprintf(stderr, "%s\n", strerror(errno));
+
+    kill(log_pid, SIGINT);
+    if (worker_pids != NULL)
+        for (pid_t i = 0; i < worker_count; ++i)
+            kill(worker_pids[i], SIGINT);
+
     free(worker_pids);
     config_destroy(&config);
     return EXIT_FAILURE;

@@ -11,4 +11,7 @@ typedef struct conn_opts_t {
 
 int accept_conn(const server_opts_t *opts);
 
+/* Перевод сокета в неблокирующий режим */
+int socket_nonblock(int socket_fd);
+
 #endif // _CONN_H_
