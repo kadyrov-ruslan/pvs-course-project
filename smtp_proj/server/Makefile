@@ -1,12 +1,12 @@
 CC=gcc
 CFLAGS=-Wall -Werror -D_POSIX_C_SOURCE -std=c99
-INC=-Iinclude -I../common/include
+INC=-Iinclude -Iproto -I../common/include
 LIB=-lconfig -lpcre
 
 OBJ_DIR=obj
 BIN_DIR=bin
 SOURCES=$(wildcard src/*.c)
-SOURCES_TEST=$(wildcard src/*.c) test/test.c
+SOURCES_TEST=$(SOURCES) test/test.c
 OBJECTS=$(SOURCES:.c=.o)
 OBJECTS_TEST=$(SOURCES_TEST:.c=.o)
 MAIN_OBJECTS=$(filter-out $(OBJ_DIR)/test.o, $(wildcard $(OBJ_DIR)/*.o))
@@ -17,20 +17,25 @@ TARGET=smtp_server
 all: server
 
 .PHONY: server
-server: mkdir | $(OBJECTS)
+server: mkdir autogen $(OBJECTS)
 	$(CC) $(MAIN_OBJECTS) $(LIB) -o $(BIN_DIR)/$(TARGET)
 
 .PHONY: tests
 tests: test_units
 
 .PHONY: test_units
-test_units: mkdir | $(OBJECTS_TEST)
+test_units: mkdir autogen $(OBJECTS_TEST)
 	$(CC) $(TEST_OBJECTS) $(LIB) -lcunit -o $(BIN_DIR)/$(TARGET)_test
 	$(BIN_DIR)/$(TARGET)_test
 	rm $(BIN_DIR)/$(TARGET)_test
 
 .c.o:
 	$(CC) -c $(CFLAGS) $(INC) $< -o $(OBJ_DIR)/$(notdir $@)
+
+.PHONY: autogen
+autogen:
+	cd proto; autogen smtp.tpl
+	$(CC) -c -w -fno-builtin-exit proto/*.c $< -o $(OBJ_DIR)/$(notdir $@).o
 
 .PHONY: mkdir
 mkdir:
@@ -39,5 +44,6 @@ mkdir:
 
 .PHONY: clean
 clean:
+	rm -f proto/*.c proto/*.h
 	rm -rf $(OBJ_DIR)*
 	rm -rf $(BIN_DIR)*

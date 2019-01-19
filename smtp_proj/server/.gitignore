@@ -1,6 +1,8 @@
 # Server .gitignore
 obj/*
 bin/*
+# Generated resources
+proto/*
+!proto/smtp.tpl
 # Clang complete
-src/.clang_complete
-test/.clang_complete
+**/.clang_complete

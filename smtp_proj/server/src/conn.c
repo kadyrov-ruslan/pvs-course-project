@@ -30,9 +30,8 @@ extern pid_t log_pid, *worker_pids;
 int listener, new_fd, max_fd;
 fd_set active_read_fds, active_write_fds, read_fds, write_fds;
 
-char buf[1024];
 size_t nbytes;
-struct timeval timeout;
+char buf[1024];
 struct sockaddr_in client_addr;
 uint32_t addr_size = sizeof(client_addr);
 
@@ -40,9 +39,6 @@ int conn_accept(const server_opts_t *opts) {
     const char* ip_addr = strlen(opts->ip) == 0 ? def_ip : opts->ip;
     const int port = opts->port == 0 ? def_port : opts->port;
     struct sockaddr_in server_addr;
-
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 10;
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -112,7 +108,7 @@ int conn_update()
 {
     read_fds = active_read_fds;
     write_fds = active_write_fds;
-    if (select(max_fd + 1, &read_fds, &write_fds, NULL, &timeout) == -1)
+    if (select(max_fd + 1, &read_fds, &write_fds, NULL, NULL) == -1)
     {
         fprintf(stderr, "Can't execute select syscall\n");
         return -1;
@@ -149,6 +145,11 @@ int conn_update()
                 memset(buf, 0, strlen(buf));
             }
         }
+        else if (FD_ISSET(i, &write_fds))
+        {
+            FD_CLR(i, &active_write_fds);
+            FD_SET(i, &active_read_fds);
+        }
 
     for (int i = 0; i < CONN_SIZE; i++)
     {
@@ -172,8 +173,7 @@ int conn_destroy()
     for (int i = 0; i <= max_fd; i++)
         if (FD_ISSET(i, &read_fds) || FD_ISSET(i, &write_fds))
         {
-            char* buffer = "421 Server is not available";
-            if (send(i, buffer, strlen(buffer), 0) == -1)
+            if (send(i, response_421, strlen(response_421), 0) == -1)
                 log_e("%s", "Can't close connection");
             close(i);
         }

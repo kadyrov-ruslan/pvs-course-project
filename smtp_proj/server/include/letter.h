@@ -5,8 +5,10 @@
 
 typedef struct
 {
-    char* mail_from; // Отправитель
-    char* rcpt_to; // Получатель
+    char *mail_from; // Отправитель
+    char *rcpt_to; // Получатель
+    char *rcpt_username; // Имя пользователя
+    char *rcpt_domain; // Домен
     char* body; // Тело письма
     FILE* file; // Файл для записи
 } letter_t;

@@ -2,8 +2,10 @@
 #define _CONN_H_
 
 #include <netinet/in.h>
+
 #include "server.h"
 #include "letter.h"
+#include "smtp-fsm.h"
 
 extern int worker_count;
 extern pid_t *worker_pids;
@@ -22,6 +24,8 @@ typedef struct
     const struct sockaddr_in6 ipv6;
     char send_buf[SEND_BUF_SIZE];
     char recv_buf[RECV_BUF_SIZE];
+    te_server_state state;
+    te_server_state old_state;
     letter_t *letter;
 } conn_t;
 
