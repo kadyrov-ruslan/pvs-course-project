@@ -4,33 +4,34 @@ int maxfd = 0;
 
 int run_client(int proc_num, int total_send_time, int retry_time)
 {
-    int fork_res = -1;
+    //int fork_res = -1;
     int child_id = -1;
-    for (int i = 0; i < proc_num; i++)
+    struct mail_process_dscrptr mail_procs[proc_num];
+    for (pid_t i = 0; i < proc_num; i++)
     {
-        fork_res = fork();
-        if (fork_res == 0)
+        mail_procs[i].pid = fork();
+        if (mail_procs[i].pid == 0)
         {
             child_id = i;
             break;
         }
-        else if (fork_res == -1)
+        else if (mail_procs[i].pid == -1)
             log_e("%s", "Can't fork worker process\n");
     }
 
     if (child_id != -1)
         child_process_worker_start(child_id, total_send_time, retry_time);
     else
-        master_process_worker_start(proc_num);
+        master_process_worker_start(proc_num, mail_procs);
 
     return 1;
 }
 
 // Содержит бизнес логику, обрабатываемую главным процессом
-int master_process_worker_start(int proc_num)
+int master_process_worker_start(int proc_num, struct mail_process_dscrptr *mail_procs)
 {
     log_i("%s", "Worker for master proc successfully started");
-    struct mail_process_dscrptr mail_procs[proc_num];
+    //struct mail_process_dscrptr mail_procs[proc_num];
     for (int i = 0; i < proc_num; i++)
     {
         key_t key = ftok("/tmp", i);
@@ -125,9 +126,6 @@ int child_process_worker_start(int proc_idx, int total_send_time, int retry_time
                                                          &read_fds, &write_fds, &except_fds, total_send_time, retry_time, ready_domains_count);
         }
 
-        tv.tv_sec = 15;
-        tv.tv_usec = 0;
-
         for (int i = 0; i < ready_domains_count; i++)
         {
             struct mail_domain_dscrptr *cur_domain = &mail_domains_dscrptrs[i];
@@ -135,10 +133,12 @@ int child_process_worker_start(int proc_idx, int total_send_time, int retry_time
                 maxfd = cur_domain->socket_fd;
         }
 
+        tv.tv_sec = 15;
+        tv.tv_usec = 0;
         int activity = select(maxfd + 1, &read_fds, &write_fds, &except_fds, &tv);
         if (activity <= 0)
         {
-            log_e(" error %d", errno);
+            //log_e(" error %d", errno);
             //shutdown_properly(EXIT_FAILURE);
         }
 
@@ -163,7 +163,7 @@ int child_process_worker_start(int proc_idx, int total_send_time, int retry_time
             if (FD_ISSET(i, &except_fds))
             {
                 log_i("Socket %d of %s domain is in except_fds", cur_mail_domain->socket_fd, cur_mail_domain->domain);
-                shutdown_properly(EXIT_FAILURE);
+                //shutdown_properly(EXIT_FAILURE);
             }
         }
     }
@@ -179,9 +179,21 @@ void wait_for(unsigned int secs)
         ; // Loop until it arrives.
 }
 
-void shutdown_properly(int code)
+void shutdown_master_properly(int proc_num, struct mail_process_dscrptr *mail_procs)
 {
-    //   delete_peer(&server);
+    for (int i = 0; i < proc_num; i++)
+        kill(mail_procs[i].pid, SIGINT);
+
     printf("Shutdown client properly.\n");
-    exit(code);
+    exit(0);
+}
+
+void shutdown_child_properly(int signal, int maxfd)
+{
+    switch (signal)
+    {
+    case SIGINT:
+        close_all_conns(maxfd);
+        exit(0);
+    }
 }

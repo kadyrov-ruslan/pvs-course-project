@@ -19,7 +19,7 @@ struct mail_domain_dscrptr
     int mails_count;
     struct node_t *mails_list;
     te_client_fsm_state state;
-    char *buffer;
+    char *buffer;  // Буфер для хранения прочитанного письма
 
     int retry_time;
     int total_send_time;
@@ -30,7 +30,7 @@ struct mail_domain_dscrptr
     int curr_rcpts_index;
 
     char request_buf[MAX_BUF_LEN];   // Буфер для отправляемых данных
-    char response_buf[MAX_BUF_LEN];  // Буфер для ответа от сервера
+    //char response_buf[MAX_BUF_LEN];  // Буфер для ответа от сервера
 };
 
 struct mail_process_dscrptr

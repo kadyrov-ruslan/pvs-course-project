@@ -24,6 +24,7 @@
 char client_host_name[MAX_BUF_LEN];
 
 int connect_to_mail_server(int socket_fd, struct sockaddr_in mail_server, char *email_domain);
+int close_all_conns(int max_fd);
 int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain);
 
 int send_helo(int socket_fd, char *request_buf);

@@ -203,8 +203,6 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
     {
         log_e("Could not send data to server %s", cur_mail_domain->domain);
         close(cur_mail_domain->socket_fd);
-        //replace_all_files_by_mx_record(sockets[i], "cur", "new");
-        //sockets = delete_struct_socket_info_by_index(sockets, &count, i);
     }
     else if (code == -2)
     {
@@ -221,11 +219,6 @@ void handle_write_socket(struct mail_domain_dscrptr *cur_mail_domain, fd_set *re
             log_e("%s", "FSM Wrong transition state");
 
         FD_CLR(cur_mail_domain->socket_fd, write_fds);
-        //replace_file(sockets[i].messages[0].address, "cur", "error");
-        //sockets[i].messages = delete_item_by_index(sockets[i].messages, &sockets[i].msg_count, 0);
-
-        // if (count(cur_mail_domain->mails_list) > 0)
-        //     sockets = delete_struct_socket_info_by_index(sockets, &count, i);
     }
     else
     {

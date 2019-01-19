@@ -18,6 +18,15 @@ int connect_to_mail_server(int socket_fd, struct sockaddr_in mail_server, char *
     return socket_fd;
 }
 
+int close_all_conns(int max_fd)
+{
+    for (int i = 0; i <= max_fd; i++)
+        //if (FD_ISSET(i, read_fds) || FD_ISSET(i, write_fds))
+            close(i);
+
+    return 0;
+}
+
 int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
 {
     struct timeval curr_time;
@@ -46,14 +55,17 @@ int send_msg_to_server(struct mail_domain_dscrptr *cur_mail_domain)
 
     case CLIENT_FSM_ST_SEND_MAIL_FROM:
         cur_mail_domain->buffer = read_msg_file(cur_mail_domain->mails_list->val);
-        //printf("READ MSG %s\n", cur_mail_domain->buffer);
-        //char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
-        //printf("ENTRY NEW NAME %s\n", email_new_name);
-        // int ret = rename((*cur_mail_domain.mails_list).val, email_new_name);
-        // if (ret == 0)
-        //     printf("File renamed successfully\n");
-        // else
-        //     printf("Error: unable to rename the file\n");
+        char *email_new_name = str_replace(cur_mail_domain->mails_list->val, "new", "cur");
+        log_i("new name %s \n", email_new_name);
+        int ret = rename((*cur_mail_domain->mails_list).val, email_new_name);
+        if (ret == 0)
+        {
+            log_i("%s", "File renamed successfully\n");
+        }
+        else
+        {
+            log_i("%s", "Error: unable to rename the file\n");
+        }
 
         code = send_mail_from(cur_mail_domain->socket_fd, cur_mail_domain->buffer, cur_mail_domain->request_buf);
         break;
