@@ -2,15 +2,22 @@
 #define _PROTOCOL_H_
 
 #include "conn.h"
+#include "pattern.h"
 
 extern conn_t *connections[1024];
 
+patterns_t patterns;
+te_server_event event_map[PT_END];
+int (* process_bind[SERVER_STATE_CT])(conn_t*, const char*);
+
+#define response_220 "220 mail@example.com\r\n"
 #define response_221 "221 Closing connection\r\n"
 #define response_250 "250 Ok\r\n"
 #define response_252 "252 Cannot VRFY user, but will accept message and attempt delivery\r\n"
 #define response_354 "354 Start mail input; end with <CRLF>.<CRLF>\r\n"
 #define response_421 "421 Server is not available\r\n"
 #define response_451 "451 Requested action aborted: local error in processing\r\n"
+#define response_500 "500 Invalid command\r\n"
 #define response_501 "501 Syntax error in parameters or arguments\r\n"
 #define response_502 "502 Command not implemented\r\n"
 #define response_554 "554 Transaction failed\r\n"

@@ -4,15 +4,32 @@
 #include <string.h>
 
 #include "log.h"
-#include "pattern.h"
 #include "smtp-fsm.h"
-
-patterns_t patterns;
 
 int protocol_init()
 {
     if (pattern_init() != 0)
         return -1;
+
+    event_map[PT_QUIT] = SERVER_EV_QUIT;
+    event_map[PT_RSET] = SERVER_EV_RSET;
+    event_map[PT_VRFY] = SERVER_EV_VRFY;
+    event_map[PT_HELO] = SERVER_EV_HELO;
+    event_map[PT_EHLO] = SERVER_EV_EHLO;
+    event_map[PT_MAIL] = SERVER_EV_MAIL;
+    event_map[PT_RCPT] = SERVER_EV_RCPT;
+    event_map[PT_DATA] = SERVER_EV_DATA;
+
+    process_bind[SERVER_ST_PROCESS_HELO] = process_helo;
+    process_bind[SERVER_ST_PROCESS_EHLO] = process_ehlo;
+	process_bind[SERVER_ST_PROCESS_MAIL] = process_mail;
+	process_bind[SERVER_ST_PROCESS_RCPT] = process_rcpt;
+	process_bind[SERVER_ST_PROCESS_DATA] = process_data;
+	process_bind[SERVER_ST_PROCESS_DATA_RECV] = process_data_recv;
+    process_bind[SERVER_ST_PROCESS_VRFY] = process_vrfy;
+    process_bind[SERVER_ST_PROCESS_RSET] = process_rset;
+    process_bind[SERVER_ST_PROCESS_QUIT] = process_quit;
+
     return 0;
 }
 
@@ -24,9 +41,40 @@ int protocol_update()
         if ((conn = connections[i]) == NULL)
             continue;
         if (conn->recv_buf[0] != '\0')
-            printf("%s\n", conn->recv_buf);
-        strcpy(conn->send_buf, conn->recv_buf);
-        memset(conn->recv_buf, 0, sizeof(char) * RECV_BUF_SIZE);
+        {
+            log_d("%s\n", conn->recv_buf);
+
+            const char* content;
+            pattern_type type = PT_START;
+            while (type < PT_END)
+            {
+                if (pattern_compute(type, conn->recv_buf, &content) == 0)
+                    break;
+                type++;
+            }
+
+            log_d("%d: %s\n", type, content);
+            if (type == PT_END && conn->state != SERVER_ST_EXPECT_DATA_RECV)
+            {
+                log_i("%s\n", "No match query for command");
+                strcpy(conn->send_buf, response_500);
+            } else
+            {
+                te_server_event event = event_map[type];
+                conn->old_state = conn->state;
+                conn->state = server_step(conn->state, event, NULL);
+                process_bind[conn->state](conn, content);
+            }
+
+            if (conn->state == SERVER_ST_INIT)
+            {
+                conn->old_state = conn->state;
+                conn->state = server_step(conn->state, SERVER_EV_CONNECT, NULL);
+                conn->old_state = conn->state;
+                conn->state = server_step(conn->state, SERVER_EV_OK, NULL);
+                strcpy(conn->send_buf, response_220);
+            }
+        }
     }
     return 0;
 }
@@ -83,9 +131,15 @@ int process_data(conn_t *conn, const char* data)
     return 0;
 }
 
-int process_data_recv(conn_t *conn, const char* data);
+int process_data_recv(conn_t *conn, const char* data)
+{
+    return 0;
+}
 
-int process_data_end(conn_t *conn, const char* data);
+int process_data_end(conn_t *conn, const char* data)
+{
+    return 0;
+}
 
 int process_rset(conn_t *conn, const char* data)
 {

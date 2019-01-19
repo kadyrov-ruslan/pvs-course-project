@@ -1,6 +1,7 @@
 #include "conn.h"
 
 #include <fcntl.h>
+#include <errno.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -128,6 +129,7 @@ int conn_update()
                     log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
                     socket_nonblock(new_fd);
                     connections[new_fd] = malloc(sizeof(conn_t));
+                    connections[new_fd]->state = SERVER_ST_INIT;
 
                     if (new_fd > max_fd)
                         max_fd = new_fd;
@@ -147,8 +149,20 @@ int conn_update()
         }
         else if (FD_ISSET(i, &write_fds))
         {
-            FD_CLR(i, &active_write_fds);
-            FD_SET(i, &active_read_fds);
+            conn_t *conn;
+            if ((conn = connections[i]) == NULL)
+                continue;
+            if (conn->send_buf[0] != '\0')
+            {
+                if (send(i, conn->send_buf, strlen(conn->send_buf), 0) != -1)
+                {
+                    memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
+                    FD_CLR(i, &active_write_fds);
+                    FD_SET(i, &active_read_fds);
+                }
+                else if (errno != EAGAIN || errno != EWOULDBLOCK)
+                    log_w("%s", "Send to socket failure");
+            }
         }
 
     for (int i = 0; i < CONN_SIZE; i++)
@@ -158,10 +172,14 @@ int conn_update()
             continue;
         if (conn->send_buf[0] != '\0')
         {
-            FD_CLR(i, &active_read_fds);
-            FD_SET(i, &active_write_fds);
-            send(i, conn->send_buf, strlen(conn->send_buf), 0);
-            memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
+            if (send(i, conn->send_buf, strlen(conn->send_buf), 0) != -1)
+                memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
+            else if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                FD_CLR(i, &active_read_fds);
+                FD_SET(i, &active_write_fds);
+            } else
+                log_w("%s", "Send to socket failure");
         }
     }
 
