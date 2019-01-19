@@ -33,6 +33,7 @@ fd_set active_read_fds, active_write_fds, read_fds, write_fds;
 
 size_t nbytes;
 char buf[1024];
+struct timeval timeout;
 struct sockaddr_in client_addr;
 uint32_t addr_size = sizeof(client_addr);
 
@@ -40,6 +41,9 @@ int conn_accept(const server_opts_t *opts) {
     const char* ip_addr = strlen(opts->ip) == 0 ? def_ip : opts->ip;
     const int port = opts->port == 0 ? def_port : opts->port;
     struct sockaddr_in server_addr;
+
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -109,13 +113,14 @@ int conn_update()
 {
     read_fds = active_read_fds;
     write_fds = active_write_fds;
-    if (select(max_fd + 1, &read_fds, &write_fds, NULL, NULL) == -1)
+    if (select(max_fd + 1, &read_fds, &write_fds, NULL, &timeout) == -1)
     {
         fprintf(stderr, "Can't execute select syscall\n");
         return -1;
     }
 
     for (int i = 0; i <= max_fd; ++i)
+    {
         if (FD_ISSET(i, &read_fds))
         {
             if (i == listener)
@@ -128,8 +133,12 @@ int conn_update()
                 {
                     log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
                     socket_nonblock(new_fd);
+
                     connections[new_fd] = malloc(sizeof(conn_t));
+                    watches[new_fd] = malloc(sizeof(stopwatch_t));
                     connections[new_fd]->state = SERVER_ST_INIT;
+                    connections[new_fd]->watch = watches[new_fd];
+                    stopwatch_start(watches[new_fd]);
 
                     if (new_fd > max_fd)
                         max_fd = new_fd;
@@ -152,34 +161,46 @@ int conn_update()
             conn_t *conn;
             if ((conn = connections[i]) == NULL)
                 continue;
-            if (conn->send_buf[0] != '\0')
+            if (send(i, conn->send_buf, strlen(conn->send_buf), 0) != -1)
             {
-                if (send(i, conn->send_buf, strlen(conn->send_buf), 0) != -1)
-                {
-                    memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
-                    FD_CLR(i, &active_write_fds);
-                    FD_SET(i, &active_read_fds);
-                }
-                else if (errno != EAGAIN || errno != EWOULDBLOCK)
-                    log_w("%s", "Send to socket failure");
+                FD_CLR(i, &active_write_fds);
+                FD_SET(i, &active_read_fds);
+            }
+            else if (errno != EAGAIN || errno != EWOULDBLOCK)
+            {
+                log_w("IS_SET: %s", "Send to socket failure");
             }
         }
+    }
 
-    for (int i = 0; i < CONN_SIZE; i++)
+    for (int i = 0; i <= max_fd; ++i)
     {
         conn_t *conn;
         if ((conn = connections[i]) == NULL)
             continue;
         if (conn->send_buf[0] != '\0')
         {
-            if (send(i, conn->send_buf, strlen(conn->send_buf), 0) != -1)
-                memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
-            else if (errno == EAGAIN || errno == EWOULDBLOCK)
+            nbytes = send(i, conn->send_buf, strlen(conn->send_buf), 0);
+            if (nbytes == -1)
             {
-                FD_CLR(i, &active_read_fds);
-                FD_SET(i, &active_write_fds);
-            } else
-                log_w("%s", "Send to socket failure");
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
+                    FD_CLR(i, &active_read_fds);
+                    FD_SET(i, &active_write_fds);
+                }
+                else
+                    log_w("%s", "Send to socket failure");
+            }
+
+            memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
+        }
+        if (conn->state == SERVER_ST_DISCONNECTED)
+        {
+            free(connections[i]);
+            free(watches[i]);
+            FD_CLR(i, &active_read_fds);
+            FD_CLR(i, &active_write_fds);
+            close(i);
         }
     }
 

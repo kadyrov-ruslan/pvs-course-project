@@ -6,6 +6,7 @@
 #include "server.h"
 #include "letter.h"
 #include "smtp-fsm.h"
+#include "stopwatch.h"
 
 extern int worker_count;
 extern pid_t *worker_pids;
@@ -27,9 +28,11 @@ typedef struct
     te_server_state state;
     te_server_state old_state;
     letter_t *letter;
+    stopwatch_t *watch;
 } conn_t;
 
 conn_t *connections[CONN_SIZE];
+stopwatch_t *watches[CONN_SIZE];
 
 int conn_accept(const server_opts_t *opts);
 

@@ -15,6 +15,7 @@ typedef enum {
     PT_RCPT,
     PT_DATA,
     PT_DATA_END,
+    PT_DATA_RECV,
     PT_EMAIL,
 
     PT_END
@@ -29,6 +30,8 @@ extern patterns_t patterns;
 
 int pattern_init();
 
-int pattern_compute(pattern_type type, const char* buf, const char** content);
+int pattern_compute(pattern_type type, const char *buf, const char **content);
+
+const char **pattern_email(const char* email);
 
 #endif // _PATTERN_H_

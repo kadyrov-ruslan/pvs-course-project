@@ -25,7 +25,7 @@ void log_handle_signal(int signal);
 #define LOG(lvl, format_, ...) {                    \
     int size = 1024;                                \
     char *prefix;                                   \
-    if (lvl < cur_level) {                          \
+    if (lvl <= cur_level) {                         \
         switch(lvl) {                               \
         case INFO:                                  \
             prefix = "INFO:";                       \

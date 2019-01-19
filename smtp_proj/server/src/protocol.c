@@ -4,7 +4,9 @@
 #include <string.h>
 
 #include "log.h"
+#include "maildir.h"
 #include "smtp-fsm.h"
+#include "stopwatch.h"
 
 int protocol_init()
 {
@@ -17,15 +19,16 @@ int protocol_init()
     event_map[PT_HELO] = SERVER_EV_HELO;
     event_map[PT_EHLO] = SERVER_EV_EHLO;
     event_map[PT_MAIL] = SERVER_EV_MAIL;
-    event_map[PT_RCPT] = SERVER_EV_RCPT;
     event_map[PT_DATA] = SERVER_EV_DATA;
+    event_map[PT_RCPT] = SERVER_EV_RCPT;
+    event_map[PT_DATA_RECV] = SERVER_EV_DATA_RECV;
 
     process_bind[SERVER_ST_PROCESS_HELO] = process_helo;
     process_bind[SERVER_ST_PROCESS_EHLO] = process_ehlo;
-	process_bind[SERVER_ST_PROCESS_MAIL] = process_mail;
-	process_bind[SERVER_ST_PROCESS_RCPT] = process_rcpt;
-	process_bind[SERVER_ST_PROCESS_DATA] = process_data;
-	process_bind[SERVER_ST_PROCESS_DATA_RECV] = process_data_recv;
+    process_bind[SERVER_ST_PROCESS_MAIL] = process_mail;
+    process_bind[SERVER_ST_PROCESS_RCPT] = process_rcpt;
+    process_bind[SERVER_ST_PROCESS_DATA] = process_data;
+    process_bind[SERVER_ST_PROCESS_DATA_RECV] = process_data_recv;
     process_bind[SERVER_ST_PROCESS_VRFY] = process_vrfy;
     process_bind[SERVER_ST_PROCESS_RSET] = process_rset;
     process_bind[SERVER_ST_PROCESS_QUIT] = process_quit;
@@ -40,6 +43,7 @@ int protocol_update()
         conn_t *conn;
         if ((conn = connections[i]) == NULL)
             continue;
+
         if (conn->recv_buf[0] != '\0')
         {
             log_d("%s\n", conn->recv_buf);
@@ -54,7 +58,7 @@ int protocol_update()
             }
 
             log_d("%d: %s\n", type, content);
-            if (type == PT_END && conn->state != SERVER_ST_EXPECT_DATA_RECV)
+            if (type == PT_END || (type == PT_DATA_RECV && conn->state != SERVER_ST_EXPECT_DATA_RECV))
             {
                 log_i("%s\n", "No match query for command");
                 strcpy(conn->send_buf, response_500);
@@ -66,16 +70,27 @@ int protocol_update()
                 process_bind[conn->state](conn, content);
             }
 
-            if (conn->state == SERVER_ST_INIT)
-            {
-                conn->old_state = conn->state;
-                conn->state = server_step(conn->state, SERVER_EV_CONNECT, NULL);
-                conn->old_state = conn->state;
-                conn->state = server_step(conn->state, SERVER_EV_OK, NULL);
-                strcpy(conn->send_buf, response_220);
-            }
+            memset(conn->recv_buf, 0, sizeof(char) * RECV_BUF_SIZE);
+            stopwatch_start(conn->watch);
+        }
+
+        if (conn->state == SERVER_ST_INIT)
+        {
+            conn->old_state = conn->state;
+            conn->state = server_step(conn->state, SERVER_EV_CONNECT, NULL);
+            conn->old_state = conn->state;
+            conn->state = server_step(conn->state, SERVER_EV_OK, NULL);
+            strcpy(conn->send_buf, response_220);
+        }
+
+        if (stopwatch_watch(conn->watch) > CONN_TIMEOUT)
+        {
+            conn->old_state = conn->state;
+            conn->state = SERVER_ST_DISCONNECTED;
+            strcpy(conn->send_buf, "421 Server Error: timeout exceeded\r\n");
         }
     }
+
     return 0;
 }
 
@@ -95,11 +110,14 @@ int process_ehlo(conn_t *conn, const char* data)
 
 int process_mail(conn_t *conn, const char* data)
 {
-    if (data == NULL) {
+    if (data == NULL)
+    {
         log_w("%s", "No data in MAIL FROM:");
         conn->state = server_step(conn->state, SERVER_EV_ERR, NULL);
         strcpy(conn->send_buf, response_451);
-    } else {
+    }
+    else
+    {
         conn->state = server_step(conn->state, SERVER_EV_OK, NULL);
         conn->letter = letter_create();
         conn->letter->mail_from = (char *)data;
@@ -110,15 +128,22 @@ int process_mail(conn_t *conn, const char* data)
 
 int process_rcpt(conn_t *conn, const char* data)
 {
-    if (data == NULL) {
+    if (data == NULL)
+    {
         conn->state = server_step(conn->state, SERVER_EV_ERR, NULL);
         strcpy(conn->send_buf, response_501);
-    } else {
+    }
+    else
+    {
         const char* content;
         conn->state = server_step(conn->state, SERVER_EV_OK, NULL);
         pattern_compute(PT_EMAIL, data, &content);
         strcpy(conn->letter->rcpt_to, data);
-        strcpy(conn->letter->rcpt_username, &content[0]);
+
+        const char **email = pattern_email(data);
+        strcpy(conn->letter->rcpt_username, email[0]);
+        strcpy(conn->letter->rcpt_domain, email[1]);
+
         strcpy(conn->send_buf, response_250);
     }
     return 0;
@@ -133,11 +158,17 @@ int process_data(conn_t *conn, const char* data)
 
 int process_data_recv(conn_t *conn, const char* data)
 {
+    strcat(conn->letter->body, data);
+    strcat(conn->letter->body, "\r\n");
+    conn->state = server_step(conn->state, SERVER_EV_OK, NULL);
     return 0;
 }
 
 int process_data_end(conn_t *conn, const char* data)
 {
+    ensure_dir(conn->letter->rcpt_username);
+    printf("%s\n", conn->letter->rcpt_domain);
+    printf("%s\n", conn->letter->body);
     return 0;
 }
 

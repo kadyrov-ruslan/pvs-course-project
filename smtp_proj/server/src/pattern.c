@@ -15,6 +15,7 @@ int pattern_init()
     _patterns[PT_RCPT] = "^[Rr][Cc][Pp][Tt]\\s[Tt][Oo]:\\s?[<]?(.+?)[>]?[\\r\\n]?$";
     _patterns[PT_DATA] = "^[Dd][Aa][Tt][Aa][\\r\\n]?$";
     _patterns[PT_DATA_END] = "^[\\r\\n]?[.][\\r\\n]?$";
+    _patterns[PT_DATA_RECV] = "(.+?)";
     _patterns[PT_EMAIL] = "^(.+?)@(.+?)$";
 
     pcre* re;
@@ -44,4 +45,17 @@ int pattern_compute(pattern_type type, const char* buf, const char** content)
 
     pcre_get_substring(buf, ovector, count, 1, content);
     return 0;
+}
+
+const char **pattern_email(const char* buf)
+{
+    int count, ovector[32];
+    pcre* re = patterns.re[PT_EMAIL];
+    if ((count = pcre_exec(re, NULL, buf, (int) strlen(buf), 0, 0, ovector, sizeof(ovector) / sizeof(ovector[0]))) < 0)
+        return NULL;
+
+    const char** res = malloc(2 * sizeof(char*));
+    pcre_get_substring(buf, ovector, count, 1, &res[0]);
+    pcre_get_substring(buf, ovector, count, 2, &res[1]);
+    return res;
 }

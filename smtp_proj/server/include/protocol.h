@@ -4,13 +4,15 @@
 #include "conn.h"
 #include "pattern.h"
 
+#define CONN_TIMEOUT 30 * 1000
+
 extern conn_t *connections[1024];
 
 patterns_t patterns;
 te_server_event event_map[PT_END];
 int (* process_bind[SERVER_STATE_CT])(conn_t*, const char*);
 
-#define response_220 "220 mail@example.com\r\n"
+#define response_220 "220 example.com\r\n"
 #define response_221 "221 Closing connection\r\n"
 #define response_250 "250 Ok\r\n"
 #define response_252 "252 Cannot VRFY user, but will accept message and attempt delivery\r\n"
@@ -45,6 +47,5 @@ int process_rset(conn_t *conn, const char* data);
 int process_vrfy(conn_t *conn, const char* data);
 
 int process_quit(conn_t *conn, const char* data);
-
 
 #endif // _PROTOCOL_H_
