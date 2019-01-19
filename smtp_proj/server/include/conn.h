@@ -12,6 +12,8 @@ extern pid_t *worker_pids;
 #define SEND_BUF_SIZE 1024
 // Размер буфера отправки данных
 #define RECV_BUF_SIZE 1024
+// Количество одновременных соединений
+#define CONN_SIZE 1024
 
 typedef struct
 {
@@ -21,9 +23,9 @@ typedef struct
     char send_buf[SEND_BUF_SIZE];
     char recv_buf[RECV_BUF_SIZE];
     letter_t *letter;
-} conn_opts_t;
+} conn_t;
 
-conn_opts_t *connections[1024];
+conn_t *connections[CONN_SIZE];
 
 int conn_accept(const server_opts_t *opts);
 

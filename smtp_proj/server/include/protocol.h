@@ -3,7 +3,7 @@
 
 #include "conn.h"
 
-extern conn_opts_t *connections[1024];
+extern conn_t *connections[1024];
 
 int protocol_init();
 

@@ -28,7 +28,7 @@ extern int worker_count;
 extern pid_t log_pid, *worker_pids;
 
 int listener, new_fd, max_fd;
-fd_set active_read_fds, read_fds, write_fds;
+fd_set active_read_fds, active_write_fds, read_fds, write_fds;
 
 char buf[1024];
 size_t nbytes;
@@ -81,9 +81,13 @@ int conn_accept(const server_opts_t *opts) {
 
     max_fd = listener;
     FD_ZERO(&active_read_fds);
+    FD_ZERO(&active_write_fds);
     FD_ZERO(&read_fds);
     FD_ZERO(&write_fds);
     FD_SET(listener, &active_read_fds);
+
+    for (int i = 0; i < CONN_SIZE; ++i)
+        connections[i] = NULL;
 
     if (prefork() < 0)
     {
@@ -107,7 +111,8 @@ DESTRUCT:
 int conn_update()
 {
     read_fds = active_read_fds;
-    if (select(max_fd + 1, &read_fds, NULL, NULL, &timeout) == -1)
+    write_fds = active_write_fds;
+    if (select(max_fd + 1, &read_fds, &write_fds, NULL, &timeout) == -1)
     {
         fprintf(stderr, "Can't execute select syscall\n");
         return -1;
@@ -126,10 +131,11 @@ int conn_update()
                 {
                     log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
                     socket_nonblock(new_fd);
+                    connections[new_fd] = malloc(sizeof(conn_t));
 
                     if (new_fd > max_fd)
                         max_fd = new_fd;
-                    FD_SET(new_fd, &read_fds);
+                    FD_SET(new_fd, &active_read_fds);
                 }
             }
             else {
@@ -138,11 +144,25 @@ int conn_update()
                     close(i);
                     FD_CLR(i, &read_fds);
                 }
-                conn_opts_t *conn = connections[i];
+                conn_t *conn = connections[i];
                 strcpy(conn->recv_buf, buf);
                 memset(buf, 0, strlen(buf));
             }
         }
+
+    for (int i = 0; i < CONN_SIZE; i++)
+    {
+        conn_t *conn;
+        if ((conn = connections[i]) == NULL)
+            continue;
+        if (conn->send_buf[0] != '\0')
+        {
+            FD_CLR(i, &active_read_fds);
+            FD_SET(i, &active_write_fds);
+            send(i, conn->send_buf, strlen(conn->send_buf), 0);
+            memset(conn->send_buf, 0, sizeof(char) * SEND_BUF_SIZE);
+        }
+    }
 
     return 0;
 }
