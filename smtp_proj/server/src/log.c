@@ -76,8 +76,8 @@ int log_message(log_level level, const char *message)
         return -1;
     if ((qid = msgget(key, 0644 | IPC_CREAT)) < 0)
         return -1;
-    
-    queue_msg_t queue_msg;
+
+    queue_msg_t queue_msg = {0};
     queue_msg.mtype = 1;
     strcpy(queue_msg.mtext, message);
     if (msgsnd(qid, &queue_msg, sizeof(queue_msg), IPC_NOWAIT) < 0)

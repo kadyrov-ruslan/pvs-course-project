@@ -4,12 +4,12 @@
 
 letter_t *letter_create()
 {
-    letter_t *letter = malloc(sizeof(letter));
-    letter->mail_from = malloc(sizeof(char) * 255);
-    letter->rcpt_to = malloc(sizeof(char) * 255);
-    letter->rcpt_username = malloc(sizeof(char) * 255);
-    letter->rcpt_domain = malloc(sizeof(char) * 255);
-    letter->body = malloc(sizeof(char) * 1024 * 1024 * 2);
+    letter_t *letter = malloc(sizeof(letter_t));
+    letter->mail_from = calloc(255, sizeof(char));
+    letter->rcpt_to = calloc(255, sizeof(char));
+    letter->rcpt_username = calloc(255, sizeof(char));
+    letter->rcpt_domain = calloc(255, sizeof(char));
+    letter->body = calloc(1024 * 1024 * 20, sizeof(char));
     letter->file = NULL;
     return letter;
 }

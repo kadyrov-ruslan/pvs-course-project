@@ -74,6 +74,9 @@ transition = { tst = process_data; tev = OK; next = expect_data_recv;};
 
 // DATA RECV
 transition = { tst = expect_data_recv; tev = DATA_RECV; next = process_data_recv;};
+transition = { tst = expect_data_recv; tev = DATA_END; next = process_data_end;};
 transition = { tst = process_data_recv; tev = ERR; next = expect_data_recv;};
 transition = { tst = process_data_recv; tev = OK; next = expect_data_recv;};
-transition = { tst = process_data_recv; tev = DATA_END; next = expect_mail;};
+
+// DATA END
+transition = { tst = process_data_end; tev = OK; next = expect_mail;};

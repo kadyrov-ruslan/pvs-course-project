@@ -17,7 +17,7 @@ int maildir_init();
 
 int maildir_ensure_user(const char *username, user_type type);
 
-int maildir_get_fname(const char *domain);
+int maildir_get_fname(const char* username, const char *domain, const char **fname);
 
 int ensure_dir(const char *dir);
 

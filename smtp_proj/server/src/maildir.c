@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 int maildir_init()
@@ -47,6 +48,30 @@ int maildir_ensure_user(const char* username, user_type type)
     free(tmpdir);
     free(userdir);
 
+    return 0;
+}
+
+int maildir_get_fname(const char* username, const char *domain, const char **fname)
+{
+
+    char *userdir = malloc(strlen(maildir_base[USR_LOCAL]) + strlen(username) + 2);
+    sprintf(userdir, "%s/%s", maildir_base[USR_LOCAL], username);
+
+    char *newdir = malloc(strlen(userdir) + strlen("new") + 2);
+    sprintf(newdir, "%s/%s", userdir, "new");
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    char* filename = malloc(sizeof(char) * 255);
+
+    pid_t pid = getpid();
+    int timestamp = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    sprintf(filename, "%d.%d.%s.mbox", pid, timestamp, domain);
+
+    char *fpath = malloc(strlen(newdir) + strlen(filename) + 2);
+    sprintf(fpath, "%s/%s", newdir, filename);
+
+    *fname = fpath;
     return 0;
 }
 

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Werror -D_POSIX_C_SOURCE -std=c99
+CFLAGS=-Wall -Werror -ggdb3 -D_POSIX_C_SOURCE -std=c99
 INC=-Iinclude -Iproto -I../common/include
 LIB=-lconfig -lpcre
 

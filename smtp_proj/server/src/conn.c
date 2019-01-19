@@ -115,7 +115,7 @@ int conn_update()
     write_fds = active_write_fds;
     if (select(max_fd + 1, &read_fds, &write_fds, NULL, &timeout) == -1)
     {
-        fprintf(stderr, "Can't execute select syscall\n");
+        fprintf(stderr, "Select: %s\n", strerror(errno));
         return -1;
     }
 
@@ -134,7 +134,7 @@ int conn_update()
                     log_i("(%d) Accept connection from %s:%d", pid, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
                     socket_nonblock(new_fd);
 
-                    connections[new_fd] = malloc(sizeof(conn_t));
+                    connections[new_fd] = conn_create();
                     watches[new_fd] = malloc(sizeof(stopwatch_t));
                     connections[new_fd]->state = SERVER_ST_INIT;
                     connections[new_fd]->watch = watches[new_fd];
@@ -148,8 +148,8 @@ int conn_update()
             else {
                 if ((nbytes = recv(i, &buf, 1024, 0)) <= 0)
                 {
-                    close(i);
                     FD_CLR(i, &read_fds);
+                    close(i);
                 }
                 conn_t *conn = connections[i];
                 strcpy(conn->recv_buf, buf);
@@ -196,7 +196,7 @@ int conn_update()
         }
         if (conn->state == SERVER_ST_DISCONNECTED)
         {
-            free(connections[i]);
+            conn_free(connections[i]);
             free(watches[i]);
             FD_CLR(i, &active_read_fds);
             FD_CLR(i, &active_write_fds);
@@ -205,6 +205,23 @@ int conn_update()
     }
 
     return 0;
+}
+
+conn_t *conn_create()
+{
+    conn_t *conn = malloc(sizeof(conn_t));
+    conn->send_buf = calloc(SEND_BUF_SIZE, sizeof(char));
+    conn->recv_buf = calloc(RECV_BUF_SIZE, sizeof(char));
+    return conn;
+}
+
+void conn_free(conn_t *conn)
+{
+    if (conn == NULL)
+        return;
+    free(conn->send_buf);
+    free(conn->recv_buf);
+    free(conn);
 }
 
 int conn_destroy()

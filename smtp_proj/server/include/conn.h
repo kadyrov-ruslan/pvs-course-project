@@ -23,8 +23,8 @@ typedef struct
     const short sin_family;
     const struct sockaddr_in ipv4;
     const struct sockaddr_in6 ipv6;
-    char send_buf[SEND_BUF_SIZE];
-    char recv_buf[RECV_BUF_SIZE];
+    char* send_buf;
+    char* recv_buf;
     te_server_state state;
     te_server_state old_state;
     letter_t *letter;
@@ -41,6 +41,13 @@ int conn_update();
 
 /* Закрытие всех соединений с кодом 421 */
 int conn_destroy();
+
+/* Создание conn_t */
+conn_t *conn_create();
+
+/* Освобождение conn_t */
+void conn_free(conn_t *conn);
+
 
 /* Перевод сокета в неблокирующий режим */
 int socket_nonblock(int socket_fd);
