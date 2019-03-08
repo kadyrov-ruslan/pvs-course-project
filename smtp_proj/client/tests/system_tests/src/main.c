@@ -22,9 +22,9 @@ int main(void)
     FILE *fp = fopen(mail_path, "a+");
     if (fp != NULL)
     {
-        fputs("kadyrov9634@gmail.com\n", fp);
+        fputs("somemail@gmail.com\n", fp);
         fputs("dev@localhost.com\n", fp);
-        fputs("From: kadyrov9634@gmail.com\n", fp);
+        fputs("From: somemail@gmail.com\n", fp);
         fputs("TO: dev@localhost.com\n", fp);
         fputs("Subject:test mail for cource SMTP client\n\n\n", fp);
         fputs("This is test EMAIL for check working SMTP client\n", fp);
