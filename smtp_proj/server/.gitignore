@@ -1,0 +1,8 @@
+# Server .gitignore
+obj/*
+bin/*
+# Generated resources
+proto/*
+!proto/smtp.tpl
+# Clang complete
+**/.clang_complete

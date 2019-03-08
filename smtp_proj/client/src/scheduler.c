@@ -166,6 +166,14 @@ int child_process_worker_start(int proc_idx, int total_send_time, int retry_time
                 //shutdown_properly(EXIT_FAILURE);
             }
         }
+
+        add_first(&mail_domains_dscrptrs[found_domain_num].mails_list, saved_email_path);
+        mail_domains_dscrptrs[ready_domains_count].in_process = true;
+        log_i("Mail %s for %s domain successfully added to process queue", saved_email_path, cur_email_domain);
+        log_i("%s domain mails count %d \n", cur_email_domain, count(mail_domains_dscrptrs[found_domain_num].mails_list));
+        free(cur_email_domain);
+        free(saved_email_path);
+        return mail_domains_dscrptrs[ready_domains_count - 1].socket_fd;
     }
 
     return 1;

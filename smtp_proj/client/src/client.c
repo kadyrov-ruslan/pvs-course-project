@@ -114,6 +114,12 @@ static int client_parse_config(void)
         return -1;
     }
 
+    if (logs_dir_st.st_uid != pwd->pw_uid || logs_dir_st.st_gid != gr->gr_gid)
+    {
+        log_e("access denied to %s", conf.logs_dir);
+        return -1;
+    }
+
     if (mail_dir_st.st_uid != pwd->pw_uid || mail_dir_st.st_gid != gr->gr_gid)
     {
         log_e("access denied to %s", conf.mail_dir);
