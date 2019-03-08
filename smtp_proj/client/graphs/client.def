@@ -1,0 +1,39 @@
+autogen definitions fsm;
+
+type    = reentrant;
+method  = case;
+prefix  = client_fsm;
+cookie  = "void *data";
+
+state   = send_helo, send_mail_from, send_rcpt_to, send_data, send_body, send_quit, connect;
+event   = OK, ERROR, UNSENT_DATA, TIMEOUT, RTIME_EXPIRED, COMMAND_NOT_IMPLEMENTED, MULTIPLE_RCPTS, MULTIPLE_EMAILS;
+
+transition =
+
+{tst = init;            tev = OK;                       next = connect;},
+{tst = init;            tev = ERROR;                    next = done;},
+
+{tst = connect;         tev = OK;                       next = send_helo;},
+{tst = connect;         tev = ERROR;                    next = done;},
+
+{tst = send_helo;       tev = OK;                       next = send_mail_from;},
+{tst = send_helo;       tev = ERROR, RTIME_EXPIRED;     next = done;},
+
+{tst = send_mail_from;  tev = OK;                       next = send_rcpt_to;},
+{tst = send_mail_from;  tev = ERROR;                    next = done;},
+
+{tst = send_rcpt_to;    tev = OK;                       next = send_data;},
+{tst = send_rcpt_to;    tev = MULTIPLE_RCPTS;           next = send_rcpt_to;},
+{tst = send_rcpt_to;    tev = ERROR;                    next = done;},
+
+{tst = send_data;       tev = OK;                       next = send_body;},
+{tst = send_data;       tev = ERROR;                    next = done;},
+
+{tst = send_body;       tev = OK;                       next = send_quit;},
+{tst = send_body;       tev = MULTIPLE_EMAILS;          next = send_mail_from;},
+{tst = send_body;       tev = ERROR;                    next = done;},
+
+{tst = send_quit;       tev = OK;                       next = init;},
+{tst = send_quit;       tev = ERROR;                    next = done;},
+
+{tst = "*";             tev = TIMEOUT;                  next = done;};

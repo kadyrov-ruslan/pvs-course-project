@@ -1,9 +1,7 @@
 #ifndef _CLIENT_TYPES_H_
 #define _CLIENT_TYPES_H_
 
-#include "../../common/include/log.h"
-#include "mail_domain.h"
-
+#include "log.h"
 #include <errno.h>
 #include <libconfig.h>
 #include <stdio.h>
@@ -14,16 +12,12 @@
 
 struct client_conf
 {
-	int port;
 	int proc_cnt;
-
+    int retry_time;
+    int total_send_time;
 	log_level log_lvl;
-	const char *log_file;
 	const char *mail_dir;
-	//const char *queue_dir;
 	const char *hostname;
-
-	struct MailDomain mail_domains[3]; 
 };
 
 extern struct client_conf conf;

@@ -9,7 +9,9 @@
 #include <limits.h>
 
 #define CLIENT_USAGE "Usage: <client> <config_file>"
-#define PROC_CNT_DEFAULT 4
+#define PROC_CNT_DEFAULT 6
+#define RETRY_TIME_DEFAULT 10
+#define TOTAL_SEND_TIME_DEFAULT 120
 
 static config_t client_conf;
 static char hostname_sys[NAME_MAX];
@@ -28,7 +30,6 @@ __attribute__((destructor)) static void client_deinit(void)
 static int client_parse_config(void)
 {
     struct stat mail_dir_st;
-    struct stat log_file_st;
     int log_lvl;
     const char *user_group;
     struct passwd *pwd;
@@ -38,24 +39,17 @@ static int client_parse_config(void)
     if (system == NULL)
     {
         log_e("%s", "not `system' parametr");
-        printf("null system\n");
-        return -1;
-    }
-
-    if (config_setting_lookup_int(system, "port", &conf.port) != CONFIG_TRUE)
-    {
-        log_e("%s", "No `port' parametr in config");
-        return -1;
-    }
-
-    if (conf.port <= 0)
-    {
-        log_e("incorrect `port' (%d)", conf.port);
         return -1;
     }
 
     if (config_lookup_int(&client_conf, "proc_cnt", &conf.proc_cnt) != CONFIG_TRUE)
         conf.proc_cnt = PROC_CNT_DEFAULT;
+
+    if (config_lookup_int(&client_conf, "retry_time", &conf.retry_time) != CONFIG_TRUE)
+        conf.retry_time = RETRY_TIME_DEFAULT;
+
+    if (config_lookup_int(&client_conf, "total_send_time", &conf.total_send_time) != CONFIG_TRUE)
+        conf.total_send_time = TOTAL_SEND_TIME_DEFAULT;
 
     if (config_lookup_string(&client_conf, "hostname", &conf.hostname) != CONFIG_TRUE)
     {
@@ -68,7 +62,6 @@ static int client_parse_config(void)
         conf.hostname = hostname_sys;
     }
     log_i("`hostname' %s'", conf.hostname);
-
     if (config_setting_lookup_int(system, "log_level", &log_lvl) != CONFIG_TRUE ||
         log_lvl < 0 || log_lvl >= LOG_LVL_LAST)
     {
@@ -78,18 +71,6 @@ static int client_parse_config(void)
     conf.log_lvl = log_lvl;
     cur_lvl = log_lvl;
 
-    if (config_lookup_string(&client_conf, "log_file", &conf.log_file) != CONFIG_TRUE)
-    {
-        log_e("%s", "incorrect `log_file'");
-        return -1;
-    }
-
-    if (stat(conf.log_file, &log_file_st) != 0)
-    {
-        log_e("incorrect log file: %s", strerror(errno));
-        return -1;
-    }
-
     if (config_lookup_string(&client_conf, "mail_dir", &conf.mail_dir) != CONFIG_TRUE)
     {
         log_e("%s", "incorrect `mail_dir'");
@@ -98,7 +79,6 @@ static int client_parse_config(void)
 
     if (stat(conf.mail_dir, &mail_dir_st) != 0)
     {
-        printf("incor maildir\n");
         log_e("incorrect mail dir: %s", strerror(errno));
         return -1;
     }
@@ -106,7 +86,6 @@ static int client_parse_config(void)
     if (config_setting_lookup_string(system, "user", &user_group) != CONFIG_TRUE)
     {
         log_e("%s", "No `user' parametr in config");
-        printf("in user\n");
         return -1;
     }
 
@@ -141,35 +120,11 @@ static int client_parse_config(void)
         return -1;
     }
 
-    struct MailDomain mail_domains[3] =
-        {
-            {
-                "mailru",
-                "smtp.mail.ru",
-            },
-            {
-                "yandex",
-                "smtp.yandex.ru",
-            },
-            {
-                "gmail",
-                "smtp.gmail.com",
-            }};
-
-    conf.mail_domains[0] = mail_domains[0];
-    conf.mail_domains[1] = mail_domains[1];
-    conf.mail_domains[2] = mail_domains[2];
     return 0;
 }
 
-int main(int argc, char *argv[])
+static int read_config(char *argv[])
 {
-    if (argc == 1)
-    {
-        log_e("%s", CLIENT_USAGE);
-        return -1;
-    }
-
     FILE *conf_f = fopen(argv[1], "r");
     if (conf_f == NULL)
     {
@@ -179,21 +134,37 @@ int main(int argc, char *argv[])
 
     if (config_read(&client_conf, conf_f) != CONFIG_TRUE)
     {
-        printf("Error while config parsing\n");
         log_e("Error while config parsing: %s\n", config_error_text(&client_conf));
         return -1;
     }
 
     if (client_parse_config() != 0)
     {
-        printf("Unable to start client: incorrect config file\n");
         log_e("%s", "Unable to start client: incorrect config file");
         return -1;
     }
 
-    printf("config is correct. Ready to start client\n");
+    fflush(stdout);
     log_i("config `%s' is correct. Ready to start client", argv[1]);
+    return 0;
+}
 
-    run_client();
+int main(int argc, char *argv[])
+{
+    //"/home/dev/pvs-course-project/smtp_proj/client/logs/"
+    if (fork() == 0)
+        start_logger(argv[2]);
+    else
+    {
+        if (argc == 1)
+        {
+            log_e("%s", CLIENT_USAGE);
+        }
+        else
+        {
+            read_config(argv);
+            run_client(conf.proc_cnt, conf.total_send_time, conf.retry_time);
+        }
+    }
     return 0;
 }

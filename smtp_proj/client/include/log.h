@@ -1,7 +1,11 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include <unistd.h>
+#include "../../common/include/dir_utils.h"
+#include "../../common/include/string_utils.h"
+#include "map.h"
+#include <sys/ipc.h> 
+#include <sys/msg.h> 
 
 typedef enum log_level_type
 {
@@ -12,17 +16,10 @@ typedef enum log_level_type
 	LOG_LVL_LAST
 } log_level;
 
-typedef enum
-{
-	LS_CONTINUE,
-	LS_STOP
-} logger_signal;
-
-int start_logger(const char *log_filename_base);
-
+int start_logger(char *log_filename_base);
 int stop_logger(void);
-
 int send_log_message(log_level log_lvl, char *message);
+int save_log(char *message, char *logs_dir);
 
 extern log_level cur_lvl;
 
@@ -32,16 +29,16 @@ extern log_level cur_lvl;
 	if (lvl <= cur_lvl) {							\
 		switch (lvl) {							\
 		case INFO:							\
-			prefix = "I";						\
+			prefix = "INFO";						\
 			break;							\
 		case WARN:							\
-			prefix = "W";						\
+			prefix = "WARN";						\
 			break;							\
 		case ERROR:							\
-			prefix = "E";						\
+			prefix = "ERROR";						\
 			break;							\
 		case DEBUG:							\
-			prefix = "D";						\
+			prefix = "DEBUG";						\
 			break;							\
 		default:							\
 			abort();						\
